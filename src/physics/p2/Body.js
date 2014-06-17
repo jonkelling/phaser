@@ -725,7 +725,7 @@ Phaser.Physics.P2.Body.prototype = {
             {
                 if (this.game.physics.p2._toRemove[i] === this)
                 {
-                    this.game.physics.p2._toRemove[i].splice(i, 1);
+                    this.game.physics.p2._toRemove.splice(i, 1);
                 }
             }
         }
