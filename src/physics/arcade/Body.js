@@ -365,6 +365,11 @@ Phaser.Physics.Arcade.Body.prototype = {
     */
     preUpdate: function () {
 
+        if (!this.enable)
+        {
+            return;
+        }
+
         this.phase = 1;
 
         //  Store and reset collision flags
@@ -439,6 +444,11 @@ Phaser.Physics.Arcade.Body.prototype = {
     * @protected
     */
     postUpdate: function () {
+
+        if (!this.enable)
+        {
+            return;
+        }
 
         //  Only allow postUpdate to be called once per frame
         if (this.phase === 2)
@@ -612,7 +622,7 @@ Phaser.Physics.Arcade.Body.prototype = {
 
         this._sx = this.sprite.scale.x;
         this._sy = this.sprite.scale.y;
-        
+
         this.center.setTo(this.position.x + this.halfWidth, this.position.y + this.halfHeight);
 
     },
@@ -767,13 +777,13 @@ Object.defineProperty(Phaser.Physics.Arcade.Body.prototype, "y", {
 /**
 * Render Sprite Body.
 *
-* @method Phaser.Physics.Arcade.Body#renderDebug
+* @method Phaser.Physics.Arcade.Body#render
 * @param {object} context - The context to render to.
 * @param {Phaser.Physics.Arcade.Body} body - The Body to render the info of.
-* @param {string} [color='rgb(255,255,255)'] - color of the debug info to be rendered. (format is css color string).
+* @param {string} [color='rgba(0,255,0,0.4)'] - color of the debug info to be rendered. (format is css color string).
 * @param {boolean} [filled=true] - Render the objected as a filled (default, true) or a stroked (false)
 */
-Phaser.Physics.Arcade.Body.render = function (context, body, filled, color) {
+Phaser.Physics.Arcade.Body.render = function (context, body, color, filled) {
 
     if (typeof filled === 'undefined') { filled = true; }
 

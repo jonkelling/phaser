@@ -190,6 +190,7 @@ Phaser.Stage.prototype.postUpdate = function () {
 *
 * @method Phaser.Stage#parseConfig
 * @protected
+* @param {object} config -The configuration object to parse.
 */
 Phaser.Stage.prototype.parseConfig = function (config) {
 
@@ -287,15 +288,11 @@ Phaser.Stage.prototype.checkVisibility = function () {
 
 /**
 * This method is called when the document visibility is changed.
+* 
 * @method Phaser.Stage#visibilityChange
 * @param {Event} event - Its type will be used to decide whether the game should be paused or not.
 */
 Phaser.Stage.prototype.visibilityChange = function (event) {
-
-    if (this.disableVisibilityChange)
-    {
-        return;
-    }
 
     if (event.type === 'pagehide' || event.type === 'blur' || event.type === 'pageshow' || event.type === 'focus')
     {
@@ -308,6 +305,11 @@ Phaser.Stage.prototype.visibilityChange = function (event) {
             this.game.focusGain(event);
         }
 
+        return;
+    }
+
+    if (this.disableVisibilityChange)
+    {
         return;
     }
 

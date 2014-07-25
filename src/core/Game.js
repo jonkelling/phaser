@@ -71,6 +71,12 @@ Phaser.Game = function (width, height, renderer, parent, state, transparent, ant
     this.antialias = true;
 
     /**
+    * @property {boolean} preserveDrawingBuffer - The value of the preserveDrawingBuffer flag affects whether or not the contents of the stencil buffer is retained after rendering.
+    * @default
+    */
+    this.preserveDrawingBuffer = false;
+
+    /**
     * @property {PIXI.CanvasRenderer|PIXI.WebGLRenderer} renderer - The Pixi Renderer.
     */
     this.renderer = null;
@@ -267,7 +273,7 @@ Phaser.Game = function (width, height, renderer, parent, state, transparent, ant
     }
     else
     {
-        this.config = {};
+        this.config = { enableDebug: true };
 
         if (typeof width !== 'undefined')
         {
@@ -368,6 +374,11 @@ Phaser.Game.prototype = {
             this.antialias = config['antialias'];
         }
 
+        if (config['preserveDrawingBuffer'])
+        {
+            this.preserveDrawingBuffer = config['preserveDrawingBuffer'];
+        }
+
         if (config['physicsConfig'])
         {
             this.physicsConfig = config['physicsConfig'];
@@ -426,9 +437,10 @@ Phaser.Game.prototype = {
             this.math = Phaser.Math;
 
             this.stage = new Phaser.Stage(this, this.width, this.height);
-            this.scale = new Phaser.ScaleManager(this, this.width, this.height);
 
             this.setUpRenderer();
+
+            this.scale = new Phaser.ScaleManager(this, this.width, this.height);
 
             this.device.checkFullScreenSupport();
 
@@ -445,8 +457,6 @@ Phaser.Game.prototype = {
             this.particles = new Phaser.Particles(this);
             this.plugins = new Phaser.PluginManager(this);
             this.net = new Phaser.Net(this);
-            this.debug = new Phaser.Utils.Debug(this);
-            this.scratch = new Phaser.BitmapData(this, '__root', 1024, 1024);
 
             this.time.boot();
             this.stage.boot();
@@ -454,7 +464,12 @@ Phaser.Game.prototype = {
             this.input.boot();
             this.sound.boot();
             this.state.boot();
-            this.debug.boot();
+
+            if (this.config['enableDebug'])
+            {
+                this.debug = new Phaser.Utils.Debug(this);
+                this.debug.boot();
+            }
 
             this.showDebugHeader();
 
@@ -506,7 +521,7 @@ Phaser.Game.prototype = {
         if (this.device.chrome)
         {
             var args = [
-                '%c %c %c Phaser v' + v + ' - ' + r + ' - ' + a + '  %c %c ' + ' http://phaser.io  %c %c \u2665%c\u2665%c\u2665 ',
+                '%c %c %c Phaser v' + v + ' | Pixi.js ' + PIXI.VERSION + ' | ' + r + ' | ' + a + '  %c %c ' + ' http://phaser.io  %c %c \u2665%c\u2665%c\u2665 ',
                 'background: #0cf300',
                 'background: #00bc17',
                 'color: #ffffff; background: #00711f;',
@@ -531,7 +546,7 @@ Phaser.Game.prototype = {
         }
         else if (window['console'])
         {
-            console.log('Phaser v' + v + ' - Renderer: ' + r + ' - Audio: ' + a + ' - http://phaser.io');
+            console.log('Phaser v' + v + ' | Pixi.js ' + PIXI.VERSION + ' | ' + r + ' | ' + a + ' | http://phaser.io');
         }
 
     },
@@ -594,9 +609,9 @@ Phaser.Game.prototype = {
         }
         else
         {
-            //  They requested WebGL, and their browser supports it
+            //  They requested WebGL and their browser supports it
             this.renderType = Phaser.WEBGL;
-            this.renderer = new PIXI.WebGLRenderer(this.width, this.height, this.canvas, this.transparent, this.antialias);
+            this.renderer = new PIXI.WebGLRenderer(this.width, this.height, this.canvas, this.transparent, this.antialias, this.preserveDrawingBuffer);
             this.context = null;
         }
 
@@ -611,7 +626,7 @@ Phaser.Game.prototype = {
     },
 
     /**
-    * The core game loop when in a paused state.
+    * The core game loop.
     *
     * @method Phaser.Game#update
     * @protected
@@ -628,7 +643,11 @@ Phaser.Game.prototype = {
                 this.pendingStep = true;
             }
 
-            this.debug.preUpdate();
+            if (this.config['enableDebug'])
+            {
+                this.debug.preUpdate();
+            }
+
             this.physics.preUpdate();
             this.state.preUpdate();
             this.plugins.preUpdate();
@@ -649,13 +668,18 @@ Phaser.Game.prototype = {
         else
         {
             this.state.pauseUpdate();
-            // this.input.update();
-            this.debug.preUpdate();
+
+            if (this.config['enableDebug'])
+            {
+                this.debug.preUpdate();
+            }
         }
 
         if (this.renderType != Phaser.HEADLESS)
         {
+            this.state.preRender();
             this.renderer.render(this.stage);
+
             this.plugins.render();
             this.state.render();
             this.plugins.postRender();
@@ -785,7 +809,10 @@ Phaser.Game.prototype = {
 
         this.onBlur.dispatch(event);
 
-        this.gamePaused(event);
+        if (!this.stage.disableVisibilityChange)
+        {
+            this.gamePaused(event);
+        }
 
     },
 
@@ -800,7 +827,10 @@ Phaser.Game.prototype = {
 
         this.onFocus.dispatch(event);
 
-        this.gameResumed(event);
+        if (!this.stage.disableVisibilityChange)
+        {
+            this.gameResumed(event);
+        }
 
     }
 
@@ -827,23 +857,23 @@ Object.defineProperty(Phaser.Game.prototype, "paused", {
             if (this._paused === false)
             {
                 this._paused = true;
-                this._codePaused = true;
                 this.sound.setMute();
                 this.time.gamePaused();
                 this.onPause.dispatch(this);
             }
+            this._codePaused = true;
         }
         else
         {
             if (this._paused)
             {
                 this._paused = false;
-                this._codePaused = false;
                 this.input.reset();
                 this.sound.unsetMute();
                 this.time.gameResumed();
                 this.onResume.dispatch(this);
             }
+            this._codePaused = false;
         }
 
     }

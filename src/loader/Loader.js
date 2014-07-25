@@ -95,6 +95,11 @@ Phaser.Loader = function (game) {
     this.onLoadComplete = new Phaser.Signal();
 
     /**
+    * @property {Phaser.Signal} onPackComplete - This event is dispatched when an asset pack has either loaded or failed. 
+    */
+    this.onPackComplete = new Phaser.Signal();
+    
+    /**
     * @property {array} _packList - Contains all the assets packs.
     * @private
     */
@@ -947,6 +952,7 @@ Phaser.Loader.prototype = {
             this.progress = 100;
             this.progressFloat = 100;
             this.hasLoaded = true;
+            this.isLoading = false;
             this.onLoadComplete.dispatch();
         }
 
@@ -1100,7 +1106,7 @@ Phaser.Loader.prototype = {
 
         console.warn("Phaser.Loader error loading pack file: " + this._packList[index].key + ' from URL ' + this._packList[index].url);
 
-        this.nextPack(index, true);
+        this.nextPack(index, false);
 
     },
 
@@ -1287,8 +1293,6 @@ Phaser.Loader.prototype = {
     * @param {string} onerror - A String of the name of the local function to be called on a file load error.
     */
     xhrLoad: function (index, url, type, onload, onerror) {
-
-        // console.log('xhrLoad', index, url, type, onload, onerror);
 
         this._xhr.open("GET", url, true);
         this._xhr.responseType = type;
@@ -1517,7 +1521,15 @@ Phaser.Loader.prototype = {
         }
 
         var file = this._fileList[index];
-        var data = JSON.parse(this._xhr.responseText);
+
+        if (this._ajax && this._ajax.responseText)
+        {
+            var data = JSON.parse(this._ajax.responseText);
+        }
+        else
+        {
+            var data = JSON.parse(this._xhr.responseText);
+        }
 
         file.loaded = true;
 

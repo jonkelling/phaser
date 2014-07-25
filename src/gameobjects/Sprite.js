@@ -155,7 +155,7 @@ Phaser.Sprite = function (game, x, y, key, frame) {
 
     /**
     * A small internal cache:
-    * 
+    *
     * 0 = previous position.x
     * 1 = previous position.y
     * 2 = previous rotation
@@ -165,18 +165,22 @@ Phaser.Sprite = function (game, x, y, key, frame) {
     * 6 = exists (0 = no, 1 = yes)
     * 7 = fixed to camera (0 = no, 1 = yes)
     * 8 = destroy phase? (0 = no, 1 = yes)
-    * 9 = texture x
-    * 10 = texture y
-    * 11 = texture width
-    * 12 = texture height
-    * 13 = texture spriteSourceSizeX
-    * 14 = texture spriteSourceSizeY
-    * 15 = trim x
-    * 16 = trim y
     * @property {Array} _cache
     * @private
     */
-    this._cache = [ 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ];
+    this._cache = [ 0, 0, 0, 0, 1, 0, 1, 0 ];
+
+    /**
+    * @property {Phaser.Rectangle} _crop - Internal cache var.
+    * @private
+    */
+    this._crop = null;
+
+    /**
+    * @property {Phaser.Rectangle} _frame - Internal cache var.
+    * @private
+    */
+    this._frame = null;
 
     /**
     * @property {Phaser.Rectangle} _bounds - Internal cache var.
@@ -209,7 +213,7 @@ Phaser.Sprite.prototype.preUpdate = function() {
         this._cache[1] = this.world.y;
         this._cache[2] = this.rotation;
 
-        if (this.body && this.body.enable)
+        if (this.body)
         {
             this.body.preUpdate();
         }
@@ -284,7 +288,7 @@ Phaser.Sprite.prototype.preUpdate = function() {
 
     this.animations.update();
 
-    if (this.body && this.body.enable)
+    if (this.body)
     {
         this.body.preUpdate();
     }
@@ -323,7 +327,7 @@ Phaser.Sprite.prototype.postUpdate = function() {
         this.key.render();
     }
 
-    if (this.exists && this.body && this.body.enable)
+    if (this.exists && this.body)
     {
         this.body.postUpdate();
     }
@@ -351,12 +355,21 @@ Phaser.Sprite.prototype.postUpdate = function() {
 * @memberof Phaser.Sprite
 * @param {string|Phaser.RenderTexture|Phaser.BitmapData|PIXI.Texture} key - This is the image or texture used by the Sprite during rendering. It can be a string which is a reference to the Cache entry, or an instance of a RenderTexture, BitmapData or PIXI.Texture.
 * @param {string|number} [frame] - If this Sprite is using part of a sprite sheet or texture atlas you can specify the exact frame to use by giving a string or numeric index.
+* @param {boolean} [stopAnimation=true] - If an animation is already playing on this Sprite you can choose to stop it or let it carry on playing.
 */
-Phaser.Sprite.prototype.loadTexture = function (key, frame) {
+Phaser.Sprite.prototype.loadTexture = function (key, frame, stopAnimation) {
 
     frame = frame || 0;
-    
+
+    if (stopAnimation || typeof stopAnimation === 'undefined')
+    {
+        this.animations.stop();
+    }
+
     this.key = key;
+
+    var setFrame = true;
+    var smoothed = this.smoothed;
 
     if (key instanceof Phaser.RenderTexture)
     {
@@ -380,42 +393,26 @@ Phaser.Sprite.prototype.loadTexture = function (key, frame) {
         }
         else if (typeof key === 'string' && !this.game.cache.checkImageKey(key))
         {
+            console.warn("Texture with key '" + key + "' not found.");
             this.key = '__missing';
             this.setTexture(PIXI.TextureCache[this.key]);
         }
         else
         {
             this.setTexture(new PIXI.Texture(PIXI.BaseTextureCache[key]));
-            this.animations.loadFrameData(this.game.cache.getFrameData(key), frame);
+
+            setFrame = !this.animations.loadFrameData(this.game.cache.getFrameData(key), frame);
         }
     }
 
-};
-
-/**
-* Resets the Texture frame dimensions that the Sprite uses for rendering.
-*
-* @method Phaser.Sprite#resetFrame
-* @memberof Phaser.Sprite
-*/
-Phaser.Sprite.prototype.resetFrame = function() {
-
-    this.texture.frame.x = this._cache[9];
-    this.texture.frame.y = this._cache[10];
-    this.texture.frame.width = this._cache[11];
-    this.texture.frame.height = this._cache[12];
-
-    if (this.texture.trim)
+    if (setFrame)
     {
-        this.texture.trim.x = this._cache[13];
-        this.texture.trim.y = this._cache[14];
-        this.texture.trim.width = this.texture.frame.width;
-        this.texture.trim.height = this.texture.frame.height;
+        this._frame = Phaser.Rectangle.clone(this.texture.frame);
     }
 
-    if (this.game.renderType === Phaser.WEBGL)
+    if (!smoothed)
     {
-        PIXI.WebGLRenderer.updateTextureFrame(this.texture);
+        this.smoothed = false;
     }
 
 };
@@ -430,100 +427,63 @@ Phaser.Sprite.prototype.resetFrame = function() {
 */
 Phaser.Sprite.prototype.setFrame = function(frame) {
 
-    this._cache[9] = frame.x;
-    this._cache[10] = frame.y;
-    this._cache[11] = frame.width;
-    this._cache[12] = frame.height;
-    this._cache[13] = frame.spriteSourceSizeX;
-    this._cache[14] = frame.spriteSourceSizeY;
+    this._frame = frame;
 
     this.texture.frame.x = frame.x;
     this.texture.frame.y = frame.y;
     this.texture.frame.width = frame.width;
     this.texture.frame.height = frame.height;
 
+    this.texture.crop.x = frame.x;
+    this.texture.crop.y = frame.y;
+    this.texture.crop.width = frame.width;
+    this.texture.crop.height = frame.height;
+
     if (frame.trimmed)
     {
-        this.texture.trim = { x: frame.spriteSourceSizeX, y: frame.spriteSourceSizeY, width: frame.width, height: frame.height };
-    }
+        if (this.texture.trim)
+        {
+            this.texture.trim.x = frame.spriteSourceSizeX;
+            this.texture.trim.y = frame.spriteSourceSizeY;
+            this.texture.trim.width = frame.sourceSizeW;
+            this.texture.trim.height = frame.sourceSizeH;
+        }
+        else
+        {
+            this.texture.trim = { x: frame.spriteSourceSizeX, y: frame.spriteSourceSizeY, width: frame.sourceSizeW, height: frame.sourceSizeH };
+        }
 
-    if (this.game.renderType === Phaser.WEBGL)
-    {
-        PIXI.WebGLRenderer.updateTextureFrame(this.texture);
+        this.texture.width = frame.sourceSizeW;
+        this.texture.height = frame.sourceSizeH;
+        this.texture.frame.width = frame.sourceSizeW;
+        this.texture.frame.height = frame.sourceSizeH;
     }
 
     if (this.cropRect)
     {
         this.updateCrop();
     }
+    else
+    {
+        if (this.game.renderType === Phaser.WEBGL)
+        {
+            PIXI.WebGLRenderer.updateTextureFrame(this.texture);
+        }
+    }
 
 };
 
 /**
-* If you have set a crop rectangle on this Sprite via Sprite.crop and since modified the Sprite.cropRect property (or the rectangle it references)
-* then you need to update the crop frame by calling this method.
+* Resets the Texture frame dimensions that the Sprite uses for rendering.
 *
-* @method Phaser.Sprite#updateCrop
+* @method Phaser.Sprite#resetFrame
 * @memberof Phaser.Sprite
 */
-Phaser.Sprite.prototype.updateCrop = function() {
+Phaser.Sprite.prototype.resetFrame = function() {
 
-    if (!this.cropRect)
+    if (this._frame)
     {
-        return;
-    }
-
-    if (this.texture.trim)
-    {
-        this._cache[15] = this._cache[9] + this.cropRect.x - this._cache[13];
-
-        if (this._cache[15] < this._cache[9])
-        {
-            this._cache[15] = this._cache[9];
-        }
-
-        this._cache[16] = this._cache[10] + this.cropRect.y - this._cache[14];
-
-        if (this._cache[16] < this._cache[10])
-        {
-            this._cache[16] = this._cache[10];
-        }
-
-        this.texture.frame.x = this._cache[15];
-        this.texture.frame.y = this._cache[16];
-
-        this._cache[15] = 0;
-        this._cache[16] = 0;
-
-        if (this.cropRect.x === 0)
-        {
-            this._cache[15] = this._cache[13];
-        }
-
-        if (this.cropRect.y === 0)
-        {
-            this._cache[16] = this._cache[14];
-        }
-
-        this.texture.frame.width = this.cropRect.width - this._cache[15];
-        this.texture.frame.height = this.cropRect.height - this._cache[16];
-
-        this.texture.trim.x = this._cache[15];
-        this.texture.trim.y = this._cache[16];
-        this.texture.trim.width = this.cropRect.width;
-        this.texture.trim.height = this.cropRect.height;
-    }
-    else
-    {
-        this.texture.frame.x = this._cache[9] + this.cropRect.x;
-        this.texture.frame.y = this._cache[10] + this.cropRect.y;
-        this.texture.frame.width = this.cropRect.width;
-        this.texture.frame.height = this.cropRect.height;
-    }
-
-    if (this.game.renderType === Phaser.WEBGL)
-    {
-        PIXI.WebGLRenderer.updateTextureFrame(this.texture);
+        this.setFrame(this._frame);
     }
 
 };
@@ -531,10 +491,10 @@ Phaser.Sprite.prototype.updateCrop = function() {
 /**
 * Crop allows you to crop the texture used to display this Sprite.
 * This modifies the core Sprite texture frame, so the Sprite width/height properties will adjust accordingly.
-* 
+*
 * Cropping takes place from the top-left of the Sprite and can be modified in real-time by either providing an updated rectangle object to Sprite.crop,
 * or by modifying Sprite.cropRect (or a reference to it) and then calling Sprite.updateCrop.
-* 
+*
 * The rectangle object given to this method can be either a Phaser.Rectangle or any object so long as it has public x, y, width and height properties.
 * A reference to the rectangle is stored in Sprite.cropRect unless the `copy` parameter is `true` in which case the values are duplicated to a local object.
 *
@@ -566,8 +526,51 @@ Phaser.Sprite.prototype.crop = function(rect, copy) {
     }
     else
     {
+        this._crop = null;
         this.cropRect = null;
+
         this.resetFrame();
+    }
+
+};
+
+/**
+* If you have set a crop rectangle on this Sprite via Sprite.crop and since modified the Sprite.cropRect property (or the rectangle it references)
+* then you need to update the crop frame by calling this method.
+*
+* @method Phaser.Sprite#updateCrop
+* @memberof Phaser.Sprite
+*/
+Phaser.Sprite.prototype.updateCrop = function() {
+
+    if (!this.cropRect)
+    {
+        return;
+    }
+
+    this._crop = Phaser.Rectangle.clone(this.cropRect, this._crop);
+    this._crop.x += this._frame.x;
+    this._crop.y += this._frame.y;
+
+    var cx = Math.max(this._frame.x, this._crop.x);
+    var cy = Math.max(this._frame.y, this._crop.y);
+    var cw = Math.min(this._frame.right, this._crop.right) - cx;
+    var ch = Math.min(this._frame.bottom, this._crop.bottom) - cy;
+
+    this.texture.crop.x = cx;
+    this.texture.crop.y = cy;
+    this.texture.crop.width = cw;
+    this.texture.crop.height = ch;
+
+    this.texture.frame.width = Math.min(cw, this.cropRect.width);
+    this.texture.frame.height = Math.min(ch, this.cropRect.height);
+
+    this.texture.width = this.texture.frame.width;
+    this.texture.height = this.texture.frame.height;
+
+    if (this.game.renderType === Phaser.WEBGL)
+    {
+        PIXI.WebGLRenderer.updateTextureFrame(this.texture);
     }
 
 };
@@ -690,6 +693,16 @@ Phaser.Sprite.prototype.destroy = function(destroyChildren) {
         }
     }
 
+    if (this._crop)
+    {
+        this._crop = null;
+    }
+
+    if (this._frame)
+    {
+        this._frame = null;
+    }
+
     this.alive = false;
     this.exists = false;
     this.visible = false;
@@ -809,7 +822,7 @@ Phaser.Sprite.prototype.play = function (name, frameRate, loop, killOnComplete) 
 * Checks to see if the bounds of this Sprite overlaps with the bounds of the given Display Object, which can be a Sprite, Image, TileSprite or anything that extends those such as a Button.
 * This check ignores the Sprites hitArea property and runs a Sprite.getBounds comparison on both objects to determine the result.
 * Therefore it's relatively expensive to use in large quantities (i.e. with lots of Sprites at a high frequency), but should be fine for low-volume testing where physics isn't required.
-* 
+*
 * @method Phaser.Sprite#overlap
 * @memberof Phaser.Sprite
 * @param {Phaser.Sprite|Phaser.Image|Phaser.TileSprite|Phaser.Button|PIXI.DisplayObject} displayObject - The display object to check against.

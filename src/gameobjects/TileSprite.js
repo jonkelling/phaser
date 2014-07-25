@@ -173,7 +173,7 @@ Phaser.TileSprite.prototype.preUpdate = function() {
         this._cache[1] = this.world.y;
         this._cache[2] = this.rotation;
 
-        if (this.body && this.body.enable)
+        if (this.body)
         {
             this.body.preUpdate();
         }
@@ -241,7 +241,7 @@ Phaser.TileSprite.prototype.preUpdate = function() {
         this.tilePosition.y += this._scroll.y * this.game.time.physicsElapsed;
     }
 
-    if (this.body && this.body.enable)
+    if (this.body)
     {
         this.body.preUpdate();
     }
@@ -274,7 +274,7 @@ Phaser.TileSprite.prototype.update = function() {
 */
 Phaser.TileSprite.prototype.postUpdate = function() {
 
-    if (this.exists && this.body && this.body.enable)
+    if (this.exists && this.body)
     {
         this.body.postUpdate();
     }
@@ -333,7 +333,7 @@ Phaser.TileSprite.prototype.stopScroll = function() {
 Phaser.TileSprite.prototype.loadTexture = function (key, frame) {
 
     frame = frame || 0;
-    
+
     this.key = key;
 
     if (key instanceof Phaser.RenderTexture)
@@ -358,6 +358,7 @@ Phaser.TileSprite.prototype.loadTexture = function (key, frame) {
         }
         else if (typeof key === 'string' && !this.game.cache.checkImageKey(key))
         {
+            console.warn("Texture with key '" + key + "' not found.");
             this.key = '__missing';
             this.setTexture(PIXI.TextureCache[this.key]);
         }
@@ -380,32 +381,40 @@ Phaser.TileSprite.prototype.loadTexture = function (key, frame) {
 */
 Phaser.TileSprite.prototype.setFrame = function(frame) {
 
-    // this._cache[9] = frame.x;
-    // this._cache[10] = frame.y;
-    // this._cache[11] = frame.width;
-    // this._cache[12] = frame.height;
-    // this._cache[13] = frame.spriteSourceSizeX;
-    // this._cache[14] = frame.spriteSourceSizeY;
-
     this.texture.frame.x = frame.x;
     this.texture.frame.y = frame.y;
     this.texture.frame.width = frame.width;
     this.texture.frame.height = frame.height;
 
+    this.texture.crop.x = frame.x;
+    this.texture.crop.y = frame.y;
+    this.texture.crop.width = frame.width;
+    this.texture.crop.height = frame.height;
+
     if (frame.trimmed)
     {
-        this.texture.trim = { x: frame.spriteSourceSizeX, y: frame.spriteSourceSizeY, width: frame.width, height: frame.height };
+        if (this.texture.trim)
+        {
+            this.texture.trim.x = frame.spriteSourceSizeX;
+            this.texture.trim.y = frame.spriteSourceSizeY;
+            this.texture.trim.width = frame.sourceSizeW;
+            this.texture.trim.height = frame.sourceSizeH;
+        }
+        else
+        {
+            this.texture.trim = { x: frame.spriteSourceSizeX, y: frame.spriteSourceSizeY, width: frame.sourceSizeW, height: frame.sourceSizeH };
+        }
+
+        this.texture.width = frame.sourceSizeW;
+        this.texture.height = frame.sourceSizeH;
+        this.texture.frame.width = frame.sourceSizeW;
+        this.texture.frame.height = frame.sourceSizeH;
     }
 
     if (this.game.renderType === Phaser.WEBGL)
     {
         PIXI.WebGLRenderer.updateTextureFrame(this.texture);
     }
-
-    // if (this.cropRect)
-    // {
-    //     this.updateCrop();
-    // }
 
 };
 
@@ -496,7 +505,7 @@ Phaser.TileSprite.prototype.play = function (name, frameRate, loop, killOnComple
 * Resets the TileSprite. This places the TileSprite at the given x/y world coordinates, resets the tilePosition and then
 * sets alive, exists, visible and renderable all to true. Also resets the outOfBounds state.
 * If the TileSprite has a physics body that too is reset.
-* 
+*
 * @method Phaser.TileSprite#reset
 * @memberof Phaser.TileSprite
 * @param {number} x - The x coordinate (in world space) to position the Sprite at.
@@ -525,7 +534,7 @@ Phaser.TileSprite.prototype.reset = function(x, y) {
     this._cache[4] = 1;
 
     return this;
-    
+
 };
 
 /**

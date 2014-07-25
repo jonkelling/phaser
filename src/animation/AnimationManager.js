@@ -79,8 +79,18 @@ Phaser.AnimationManager.prototype = {
     * @private
     * @param {Phaser.FrameData} frameData - The FrameData set to load.
     * @param {string|number} frame - The frame to default to.
+    * @return {boolean} Returns `true` if the frame data was loaded successfully, otherwise `false`
     */
     loadFrameData: function (frameData, frame) {
+
+        if (this.isLoaded)
+        {
+            //   We need to update the frameData that the animations are using
+            for (var anim in this._anims)
+            {
+                this._anims[anim].updateFrameData(frameData);
+            }
+        }
 
         this._frameData = frameData;
 
@@ -101,6 +111,15 @@ Phaser.AnimationManager.prototype = {
         }
 
         this.isLoaded = true;
+
+        if (this._frameData)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
 
     },
 
@@ -159,11 +178,13 @@ Phaser.AnimationManager.prototype = {
         this.currentAnim = this._anims[name];
         this.currentFrame = this.currentAnim.currentFrame;
 
-        this.sprite.setFrame(this.currentFrame);
+        // this.sprite.setFrame(this.currentFrame);
 
+        //  CHECK WE STILL NEED THIS - PRETTY SURE IT DOESN'T ACTUALLY DO ANYTHING!
         if (this.sprite.__tilePattern)
         {
-            this.__tilePattern = false;
+            // this.__tilePattern = false;
+            this.sprite.__tilePattern = false;
             this.tilingTexture = false;
         }
 
@@ -227,6 +248,7 @@ Phaser.AnimationManager.prototype = {
                     this.currentAnim.paused = false;
                     return this.currentAnim.play(frameRate, loop, killOnComplete);
                 }
+                return this.currentAnim;
             }
             else
             {
@@ -237,6 +259,7 @@ Phaser.AnimationManager.prototype = {
 
                 this.currentAnim = this._anims[name];
                 this.currentAnim.paused = false;
+                this.currentFrame = this.currentAnim.currentFrame;
                 return this.currentAnim.play(frameRate, loop, killOnComplete);
             }
         }
@@ -294,6 +317,38 @@ Phaser.AnimationManager.prototype = {
         }
 
         return false;
+
+    },
+
+    /**
+    * Advances by the given number of frames in the current animation, taking the loop value into consideration.
+    *
+    * @method Phaser.AnimationManager#next
+    * @param {number} [quantity=1] - The number of frames to advance.
+    */
+    next: function (quantity) {
+
+        if (this.currentAnim)
+        {
+            this.currentAnim.next(quantity);
+            this.currentFrame = this.currentAnim.currentFrame;
+        }
+
+    },
+
+    /**
+    * Moves backwards the given number of frames in the current animation, taking the loop value into consideration.
+    *
+    * @method Phaser.AnimationManager#previous
+    * @param {number} [quantity=1] - The number of frames to move back.
+    */
+    previous: function (quantity) {
+
+        if (this.currentAnim)
+        {
+            this.currentAnim.previous(quantity);
+            this.currentFrame = this.currentAnim.currentFrame;
+        }
 
     },
 

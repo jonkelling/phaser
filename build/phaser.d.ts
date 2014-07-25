@@ -1,11 +1,8 @@
-// Type definitions for PIXI 1.5.2
+// Type definitions for PIXI 1.6.1
 // Project: https://github.com/GoodBoyDigital/pixi.js/
-// Original 1.3 by: xperiments <http://github.com/xperiments> 
-// Definitions: https://github.com/borisyankov/DefinitelyTyped
 
 declare module PIXI {
 
-    /* CONSTANTS */
     export var WEBGL_RENDERER: number;
     export var CANVAS_RENDERER: number;
     export var VERSION: string;
@@ -32,11 +29,11 @@ declare module PIXI {
 
     }
 
-    export class scaleModes {
+    export enum scaleModes {
 
-         public static DEFAULT: number;
-         public static LINEAR: number;
-         public static NEAREST: number;
+        DEFAULT,
+        LINEAR,
+        NEAREST
 
     }
 
@@ -45,18 +42,17 @@ declare module PIXI {
     export var RAD_TO_DEG: number;
     export var DEG_TO_RAD: number;
 
-    /* MODULE FUNCTIONS */
-    export function autoDetectRenderer(width: number, height: number, view?: HTMLCanvasElement, transparent?: boolean, antialias?: boolean): IPixiRenderer;
-    export function AjaxRequest(): XMLHttpRequest;
-    export function canUseNewCanvasBlendModes(): boolean;
-    export function getNextPowerOfTwo(): number;
-    export function rgb2hex(rgb: any): number;
-    export function hex2rgb(hex: number): any;
+    export function rgb2hex(rgb: number[]): string;
+    export function hex2rgb(hex: string): number[];
 
-    /*INTERFACES*/
-    export interface IBasicCallback {
-        (): void
-    }
+    export function autoDetectRenderer(width?: number, height?: number, view?: HTMLCanvasElement, transparent?: boolean, antialias?: boolean): PixiRenderer;
+    export function autoDetectRecommendedRenderer(width?: number, height?: number, view?: HTMLCanvasElement, transparent?: boolean, antialias?: boolean): PixiRenderer;
+
+    export function canUseNewCanvasBlendModes(): boolean;
+    export function getNextPowerOfTwo(number: number): number;
+
+    export function AjaxRequest(): XMLHttpRequest;
+
 
     export interface IEventCallback {
         (e?: IEvent): void
@@ -67,7 +63,7 @@ declare module PIXI {
         content: any;
     }
 
-    export interface IHitArea {
+    export interface HitArea {
         contains(x: number, y: number): boolean;
     }
 
@@ -75,96 +71,91 @@ declare module PIXI {
         (interactionData: InteractionData): void
     }
 
-    export interface IAbstractFilter {
+    export interface PixiRenderer {
 
-    }
-
-    export interface IPixiRenderer {
-        type: number;
+        height: number;
         transparent: boolean;
-        width: number; 
-        height: number; 
+        type: number;
+        width: number;
         view: HTMLCanvasElement;
-        
+
         render(stage: Stage): void;
         resize(width: number, height: number): void;
+
     }
 
-    export interface IBitmapTextStyle {
+    export interface BitmapTextStyle {
+
         font?: string;
         align?: string;
         tint?: string;
+
     }
 
-    export interface ITextStyle {
+    export interface TextStyle {
+
+        align?: string;
+        dropShadow?: boolean;
+        dropShadowColor?: string;
+        dropShadowAngle?: number;
+        dropShadowDistance?: number;
+        fill?: string;
         font?: string;
         stroke?: string;
-        fill?: string;
-        align?: string;
         strokeThickness?: number;
         wordWrap?: boolean;
         wordWrapWidth?: number;
+
     }
 
-    export interface IUniform {
-        type: string;
-        value: any;
+    export interface Loader {
+
+        load(): void;
+
     }
 
-    export interface ILoader {
+    export interface MaskData {
 
-        constructor(url: string, crossorigin: any);
-
-        load();
-    }
-
-    export interface ITintMethod {
-        (texture: Texture, color: number, canvas: HTMLCanvasElement): void;
-    }
-
-    export interface IMaskData {
         alpha: number;
         worldTransform: number[];
+
     }
 
-    export interface IRenderSession // unclear; Taken from DisplayObjectContainer:152
-    {
+    export interface RenderSession {
+
         context: CanvasRenderingContext2D;
         maskManager: CanvasMaskManager;
         scaleMode: scaleModes;
         smoothProperty: string;
+        roundPixels: boolean;
+
     }
 
-    export interface IShaderAttribute {
+    export interface ShaderAttribute {
         // TODO: Find signature of shader attributes
     }
 
-    export interface IFilterBlock {
-        // TODO: Find signature of filterBlock
+    export interface FilterBlock {
+
+        visible: boolean;
+        renderable: boolean;
+
     }
 
-    export interface IMatrix {
-        // TODO: Find signature of Matrix
-    }
+    export class AbstractFilter {
 
-    /* CLASSES */
+        constructor(fragmentSrc: any, uniforms: any);
 
-    export class AbstractFilter implements IAbstractFilter {
-
-        passes: AbstractFilter[];
-        shaders: PixiShader[];
         dirty: boolean;
         padding: number;
-        uniforms: { [name: string]: IUniform };
-        fragmentSrc: any[];
 
     }
 
     export class AlphaMaskFilter extends AbstractFilter {
 
-        map: Texture;
-
         constructor(texture: Texture);
+
+        map: Texture;
 
         onTextureLoaded(): void;
 
@@ -172,13 +163,15 @@ declare module PIXI {
 
     export class AssetLoader extends EventTarget {
 
-        assetURLs: string[];
-        crossorigin: any;
-        loadersByType: { [key: string]: ILoader };
+        constructor(assetURLs: string[], crossorigin: boolean);
 
-        constructor(assetURLs: string[], crossorigin: any);
+        assetURLs: string[];
+        crossorigin: boolean;
+        loadersByType: { [key: string]: Loader };
 
         load(): void;
+        onComplete(): void;
+        onProgress(): void;
 
     }
 
@@ -186,43 +179,44 @@ declare module PIXI {
 
         url: string;
         baseUrl: string;
-        crossorigin: any;
+        crossorigin: boolean;
         loaded: boolean;
 
-        constructor(url: string, crossorigin: any);
-
+        constructor(url: string, crossorigin: boolean);
         load(): void;
 
     }
 
     export class BaseTexture extends EventTarget {
 
-        id: number;
-        height: number;
-        width: number;
-        source: HTMLImageElement;
-        scaleMode: scaleModes;
-        hasLoaded: boolean;
+        static fromImage(imageUrl: string, crossorigin?: boolean, scaleMode?: scaleModes): BaseTexture;
+        static fromCanvas(canvas: HTMLCanvasElement, scaleMode?: scaleModes): BaseTexture;
 
         constructor(source: HTMLImageElement, scaleMode: scaleModes);
         constructor(source: HTMLCanvasElement, scaleMode: scaleModes);
 
+        height: number;
+        hasLoaded: boolean;
+        id: number;
+        premultipliedAlpha: boolean;
+        scaleMode: scaleModes;
+        source: HTMLImageElement;
+        width: number;
+
         destroy(): void;
         updateSourceImage(newSrc: string): void;
 
-        static fromImage(imageUrl: string, crossorigin: any, scaleMode: scaleModes): BaseTexture;
-        static fromCanvas(canvas: HTMLCanvasElement, scaleMode: scaleModes): BaseTexture;
 
     }
 
     export class BitmapFontLoader extends EventTarget {
 
+        constructor(url: string, crossorigin: boolean);
+
         baseUrl: string;
-        crossorigin: any;
+        crossorigin: boolean;
         texture: Texture;
         url: string;
-
-        constructor(url: string, crossorigin: any);
 
         load(): void;
 
@@ -230,18 +224,18 @@ declare module PIXI {
 
     export class BitmapText extends DisplayObjectContainer {
 
-        width: number;
-        height: number;
+        constructor(text: string, style: BitmapTextStyle);
+
+        dirty: boolean;
         fontName: string;
         fontSize: number;
-        tint: number;
         textWidth: number;
         textHeight: number;
-
-        constructor(text: string, style: IBitmapTextStyle);
+        tint: number;
+        style: BitmapTextStyle;
 
         setText(text: string): void;
-        setStyle(style: IBitmapTextStyle): void;
+        setStyle(style: BitmapTextStyle): void;
 
     }
 
@@ -267,27 +261,26 @@ declare module PIXI {
 
     export class CanvasMaskManager {
 
-        pushMask(maskData: IMaskData, context: CanvasRenderingContext2D): void;
+        pushMask(maskData: MaskData, context: CanvasRenderingContext2D): void;
         popMask(context: CanvasRenderingContext2D): void;
 
     }
 
-    export class CanvasRenderer implements IPixiRenderer {
+    export class CanvasRenderer implements PixiRenderer {
 
-        type: number;
+        constructor(width?: number, height?: number, view?: HTMLCanvasElement, transparent?: boolean);
+
         clearBeforeRender: boolean;
-        roundPixels: boolean;
-        transparent: boolean;
-        width: number;
-        height: number;
-        view: HTMLCanvasElement;
         context: CanvasRenderingContext2D;
-        refresh: boolean;
         count: number;
+        height: number;
         maskManager: CanvasMaskManager;
-        renderSession: IRenderSession;
-
-        constructor(width: number, height: number, view?: HTMLCanvasElement, transparent?: boolean);
+        refresh: boolean;
+        renderSession: RenderSession;
+        transparent: boolean;
+        type: number;
+        view: HTMLCanvasElement;
+        width: number;
 
         render(stage: Stage): void;
         resize(width: number, height: number): void;
@@ -296,38 +289,36 @@ declare module PIXI {
 
     export class CanvasTinter {
 
-        canvas: HTMLCanvasElement;
-
-        getTintedTexture(sprite: Sprite, color: number): HTMLCanvasElement;
-        tintWithMultiply(texture: Texture, color: number, canvas: HTMLCanvasElement): void;
-        tintWithOverlay(texture: Texture, color: number, canvas: HTMLCanvasElement): void;
-        tintWithPerPixel(texture: Texture, color: number, canvas: HTMLCanvasElement): void;
+        static getTintedTexture(sprite: Sprite, color: number): HTMLCanvasElement;
+        static tintWithMultiply(texture: Texture, color: number, canvas: HTMLCanvasElement): void;
+        static tintWithOverlay(texture: Texture, color: number, canvas: HTMLCanvasElement): void;
+        static tintWithPerPixel(texture: Texture, color: number, canvas: HTMLCanvasElement): void;
+        static roundColor(color: number): void;
 
         static cacheStepsPerColorChannel: number;
         static convertTintToImage: boolean;
         static canUseMultiply: boolean;
-        static tintMethod: ITintMethod;
-
-        static roundColor(color: number): number;
+        static tintMethod: any;
 
     }
 
-    export class Circle implements IHitArea {
+    export class Circle implements HitArea {
+
+        constructor(x: number, y: number, radius: number);
 
         x: number;
         y: number;
         radius: number;
 
-        constructor(x: number, y: number, radius: number);
-
         clone(): Circle;
         contains(x: number, y: number): boolean;
+        getBounds(): Rectangle;
 
     }
 
     export class ColorMatrixFilter extends AbstractFilter {
 
-        matrix: number[];
+        matrix: Matrix;
 
     }
 
@@ -345,18 +336,18 @@ declare module PIXI {
 
     export class DisplacementFilter extends AbstractFilter {
 
+        constructor(texture: Texture);
+
         map: Texture;
         offset: Point;
         scale: Point;
-
-        constructor(texture: Texture);
 
     }
 
     export class DotScreenFilter extends AbstractFilter {
 
-        scale: Point;
         angle: number;
+        scale: Point;
 
     }
 
@@ -364,10 +355,11 @@ declare module PIXI {
 
         alpha: number;
         buttonMode: boolean;
+        cacheAsBitmap: boolean;
         defaultCursor: string;
         filterArea: Rectangle;
-        filters: IAbstractFilter[];
-        hitArea: IHitArea;
+        filters: AbstractFilter[];
+        hitArea: HitArea;
         interactive: boolean;
         mask: Graphics;
         parent: DisplayObjectContainer;
@@ -380,14 +372,13 @@ declare module PIXI {
         visible: boolean;
         worldAlpha: number;
         worldVisible: boolean;
-        worldTransform: IMatrix;
         x: number;
         y: number;
 
         click(e: InteractionData): void;
-        getBounds(matrix?: IMatrix): Rectangle;
+        getBounds(matrix?: Matrix): Rectangle;
         getLocalBounds(): Rectangle;
-        generateTexture(renderer: PIXI.IPixiRenderer): RenderTexture;
+        generateTexture(renderer: PixiRenderer): RenderTexture;
         mousedown(e: InteractionData): void;
         mouseout(e: InteractionData): void;
         mouseover(e: InteractionData): void;
@@ -398,35 +389,41 @@ declare module PIXI {
         touchend(e: InteractionData): void;
         touchendoutside(e: InteractionData): void;
         touchstart(e: InteractionData): void;
+        touchmove(e: InteractionData): void;
 
     }
 
-    export class DisplayObjectContainer extends PIXI.DisplayObject {
+    export class DisplayObjectContainer extends DisplayObject {
 
+        constructor();
+
+        children: DisplayObject[];
         height: number;
         width: number;
-        children: DisplayObject[];
 
         addChild(child: DisplayObject): void;
         addChildAt(child: DisplayObject, index: number): void;
         getChildAt(index: number): DisplayObject;
-        removeChild(child: DisplayObject): void;
+        removeChild(child: DisplayObject): DisplayObject;
+        removeChildAt(index: number): DisplayObject;
+        removeChildren(beginIndex: number, endIndex: number): DisplayObject[];
         removeStageReference(): void;
 
     }
 
-    export class Ellipse implements IHitArea {
+    export class Ellipse implements HitArea {
+
+        constructor(x: number, y: number, width: number, height: number);
 
         x: number;
         y: number;
         width: number;
         height: number;
 
-        constructor(x: number, y: number, width: number, height: number);
-
         clone(): Ellipse;
         contains(x: number, y: number): boolean;
         getBounds(): Rectangle;
+
     }
 
     export class EventTarget {
@@ -440,50 +437,49 @@ declare module PIXI {
 
     }
 
-    export class FilterBlock {
-
-        visible: boolean;
-        renderable: boolean;
-
-    }
-
     export class FilterTexture {
 
-        fragmentSrc: string[];
-        gl: any;
-        program: any;
+        constructor(gl: WebGLRenderingContext, width: number, height: number, scaleMode: scaleModes);
 
-        constructor(gl: any, width: number, height: number);
+        fragmentSrc: string[];
+        frameBuffer: WebGLFramebuffer;
+        gl: WebGLRenderingContext;
+        program: WebGLProgram;
+        scaleMode: number;
+
         clear(): void;
         resize(width: number, height: number): void;
         destroy(): void;
 
     }
 
-    export class Graphics extends Texture {
+    export class Graphics extends DisplayObjectContainer {
 
-        blendMode: blendModes;
         bounds: Rectangle;
+        blendMode: number;
         boundsPadding: number;
         fillAlpha: number;
         isMask: boolean;
-        lineColor: string;
         lineWidth: number;
-        renderable: boolean;
+        lineColor: string;
         tint: number;
 
-        beginFill(color: number, alpha: number): void;
+        arc(cx: number, cy: number, radius: number, startAngle: number, endAngle: number, anticlockwise: boolean): Graphics;
+        arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): Graphics;
+        beginFill(color: number, alpha?: number): void;
+        bezierCurveTo(cpX: number, cpY: number, cpX2: number, cpY2: number, toX: number, toY: number): Graphics;
         clear(): void;
+        destroyCachedSprite(): void;
         drawCircle(x: number, y: number, radius: number): void;
         drawEllipse(x: number, y: number, width: number, height: number): void;
+        drawPath(path: any): void;
         drawRect(x: number, y: number, width: number, height: number): void;
+        drawRoundedRect(x: number, y: number, width: number, height: number, radius: number): Graphics;
         endFill(): void;
-        generateTexture(): Texture;
-        generateTexture(renderer: PIXI.IPixiRenderer): RenderTexture;
-        getBounds(): Rectangle;
         lineStyle(lineWidth: number, color: number, alpha: number): void;
         lineTo(x: number, y: number): void;
         moveTo(x: number, y: number): void;
+        quadraticCurveTo(cpX: number, cpY: number, toX: number, toY: number): Graphics;
         updateBounds(): void;
 
     }
@@ -496,9 +492,10 @@ declare module PIXI {
 
     export class ImageLoader extends EventTarget {
 
+        constructor(url: string, crossorigin?: boolean);
+
         texture: Texture;
 
-        constructor(url: string, crossorigin?: any);
         load(): void;
         loadFramedSpriteSheet(frameWidth: number, frameHeight: number, textureName: string): void;
 
@@ -525,11 +522,9 @@ declare module PIXI {
         touchs: { [id: string]: InteractionData };
 
         constructor(stage: Stage);
-
-        removeEvents(): void;
     }
 
-    export class InvertFilter {
+    export class InvertFilter extends AbstractFilter {
 
         invert: number;
 
@@ -537,18 +532,38 @@ declare module PIXI {
 
     export class JsonLoader extends EventTarget {
 
+        constructor(url: string, crossorigin?: boolean);
+
         baseUrl: string;
-        crossorigin: any;
+        crossorigin: boolean;
         loaded: boolean;
         url: string;
-
-        constructor(url: string, crossorigin?: any);
 
         load(): void;
 
     }
 
+    export class Matrix {
+
+        a: number;
+        b: number;
+        c: number;
+        d: number;
+        tx: number;
+        ty: number;
+
+        determineMatrixArrayType(): number[];
+        fromArray(array: number[]): void;
+        toArray(transpose: boolean): number[];
+
+    }
+
     export class MovieClip extends Sprite {
+
+        static fromFrames(frames: string[]): MovieClip;
+        static fromImages(images: HTMLImageElement[]): HTMLImageElement;
+
+        constructor(textures: Texture[]);
 
         animationSpeed: number;
         currentFrame: number;
@@ -557,12 +572,9 @@ declare module PIXI {
         textures: Texture[];
         totalFrames: number;
 
-        constructor(textures: Texture[]);
-
-        onComplete: IBasicCallback;
-
         gotoAndPlay(frameNumber: number): void;
         gotoAndStop(frameNumber: number): void;
+        onComplete(): void;
         play(): void;
         stop(): void;
 
@@ -582,104 +594,59 @@ declare module PIXI {
 
     }
 
-    export class PixiFastShader {
-
-        gl: any;
-        fragmentSrc: string[];
-        program: any;
-        textureCount: number;
-        vertexSrc: string[];
-
-        constructor(gl: any);
-
-        destroy(): void;
-        init(): void;
-
-    }
-
     export class PixiShader {
-
         defaultVertexSrc: string;
         fragmentSrc: string[];
-        gl: any;
-        program: any;
+        gl: WebGLRenderingContext;
+        program: WebGLProgram;
         textureCount: number;
-        attributes: IShaderAttribute[];
-        defaultVertexSr: string;
+        attributes: ShaderAttribute[];
 
-        constructor(gl: any);
-
+        constructor(gl: WebGLRenderingContext);
         destroy(): void;
         init(): void;
         initSampler2D(): void;
         initUniforms(): void;
         syncUniforms(): void;
-
     }
 
     export class Point {
 
+        constructor(x?: number, y?: number);
+
         x: number;
         y: number;
-
-        constructor(x?: number, y?: number);
 
         clone(): Point;
         set(x: number, y: number): void;
 
     }
 
-    export class Polygon implements IHitArea {
-
-        points: Point[];
+    export class Polygon implements HitArea {
 
         constructor(points: Point[]);
         constructor(points: number[]);
         constructor(...points: Point[]);
         constructor(...points: number[]);
 
+        points: Point[];
+
         clone(): Polygon;
         contains(x: number, y: number): boolean;
 
     }
 
-    export class PrimitiveShader {
+    export class Rectangle implements HitArea {
 
-        gl: any;
-        program: any;
-        fragmentSrc: string[];
-        vertextSrc: string[];
-
-        destroy(): void;
-        init(): void;
-
-    }
-
-    export class Rectangle implements IHitArea {
+        constructor(x?: number, y?: number, width?: number, height?: number);
 
         x: number;
         y: number;
         width: number;
         height: number;
 
-        constructor(x?: number, y?: number, width?: number, height?: number);
-
         clone(): Rectangle;
         contains(x: number, y: number): boolean;
-
-    }
-
-    export class RenderTexture extends Texture {
-
-        width: number;
-        height: number;
-        frame: Rectangle;
-        baseTexture: BaseTexture;
-
-        constructor(width: number, height: number, renderer: IPixiRenderer);
-
-        clear(): void;
-        resize(width: number, height: number, updateBase: boolean): void;
 
     }
 
@@ -692,50 +659,47 @@ declare module PIXI {
     export class Rope {
 
         points: Point[];
-        vertices: Float32Array;
-        uvs: Float32Array;
-        colors: Float32Array;
-        indices: Uint16Array;
+        vertices: number[];
+        uvs: number[];
+        colors: number[];
+        indices: number[];
 
         constructor(texture: Texture, points: Point[]);
-
         refresh(): void;
-        setTexture(texture: Texture);
+        setTexture(texture: Texture): void;
 
     }
 
-    export class SepiaFilter {
+    export class SepiaFilter extends AbstractFilter {
 
         sepia: number;
 
     }
 
-    export class SmartBlurFilter {
+    export class SmartBlurFilter extends AbstractFilter {
 
         blur: number;
 
     }
 
-    export class Spine {
+    export class SpineLoader {
 
-        url: string;
-        crossorigin: any;
+        constructor(url: string, crossorigin: boolean);
+
+        crossorigin: boolean;
         loaded: boolean;
+        url: string;
+
+        load(): void;
+    }
+
+    export class Spine extends DisplayObjectContainer {
 
         constructor(url: string);
 
-        createSprite(slot: any, descriptor: string): Sprite;
-
-        load();
-    }
-
-    export class SpineLoader extends EventTarget {
-
         url: string;
-        crossorigin: any;
+        crossorigin: boolean;
         loaded: boolean;
-
-        constructor(url: string, crossorigin?: any);
 
         load(): void;
 
@@ -743,51 +707,49 @@ declare module PIXI {
 
     export class Sprite extends DisplayObjectContainer {
 
+        static fromFrame(frameId: string): Sprite;
+        static fromImage(url: string, crossorigin?: boolean, scaleMode?: scaleModes): Sprite;
+
+        constructor(texture: Texture);
+
         anchor: Point;
-        blendMode: number;
+        blendMode: blendModes;
         texture: Texture;
-        height: number;
-        width: number;
         tint: number;
 
-        constructor(texture: Texture);
-
-        getBounds(matrix?: IMatrix): Rectangle;
         setTexture(texture: Texture): void;
 
-        static fromFrame(frameId: string): Sprite;
-        static fromImage(url: string): Sprite;
+    }
+
+    export class SpriteBatch extends DisplayObjectContainer {
+
+        constructor(texture?: Texture);
+
+        ready: boolean;
+
+        initWebGL(gl: any): void;
 
     }
 
-    export class SpriteBatch {
-
-        constructor(texture: Texture);
-
-    }
-
-    /* TODO determine type of frames */
     export class SpriteSheetLoader extends EventTarget {
 
-        url: string;
-        crossorigin: any;
+        constructor(url: string, crossorigin?: boolean);
+
         baseUrl: string;
+        crossorigin: boolean;
+        frames: any;
         texture: Texture;
-        frames: Object;
+        url: string;
 
-        constructor(url: string, crossorigin?: any);
+        load(): void;
 
-        load();
     }
 
     export class Stage extends DisplayObjectContainer {
 
-        bounds: Phaser.Rectangle;
-        interactive: boolean;
-        interactionManager: InteractionManager;
-        worldTransform: IMatrix;
-
         constructor(backgroundColor: number);
+
+        interactionManager: InteractionManager;
 
         getMousePosition(): Point;
         setBackgroundColor(backgroundColor: number): void;
@@ -797,213 +759,228 @@ declare module PIXI {
 
     export class Strip extends DisplayObjectContainer {
 
-        constructor(texture: Texture, width: number, height: number);
-
-    }
-
-    export class StripShader {
-
-        program: any;
-        fragmentSrc: string[];
-        vertexSrc: string[];
-
-        init(): void;
+        constructor(texture: Texture);
 
     }
 
     export class Text extends Sprite {
 
-        canvas: HTMLCanvasElement;
+        constructor(text: string, style?: TextStyle);
+
         context: CanvasRenderingContext2D;
 
-        constructor(text: string, style: ITextStyle);
-
         destroy(destroyTexture: boolean): void;
+        setStyle(style: TextStyle): void;
         setText(text: string): void;
-        setStyle(style: ITextStyle): void;
 
     }
 
     export class Texture extends EventTarget {
 
-        baseTexture: BaseTexture;
-        frame: Rectangle;
-        trim: Point;
-        width: number;
-        height: number;
+        static fromCanvas(canvas: HTMLCanvasElement, scaleMode?: scaleModes): Texture;
+        static fromFrame(frameId: string): Texture;
+        static fromImage(imageUrl: string, crossorigin?: boolean, scaleMode?: scaleModes): Texture;
+        static addTextureToCache(texture: Texture, id: string): void;
+        static removeTextureFromCache(id: string): Texture;
 
         constructor(baseTexture: BaseTexture, frame?: Rectangle);
 
-        destroy(destroyBase?: boolean): void;
-        setFrame(frame: Rectangle): void;
-        render(displayObject: DisplayObject, position: Point, clear: boolean): void;
+        baseTexture: BaseTexture;
+        crop: Rectangle;
+        frame: Rectangle;
+        height: number;
+        noFrame: boolean;
+        trim: Point;
+        width: number;
+        scope: Object;
+        valid: boolean;
 
-        static fromImage(imageUrl: string, crossorigin: any, scaleMode: scaleModes): Texture;
-        static fromFrame(frameId: string): Texture;
-        static fromCanvas(canvas: HTMLCanvasElement, scaleMode: scaleModes): Texture;
-        static addTextureToCache(texture: Texture, id: string): void;
-        static removeTextureFromCache(id: string): Texture;
+        destroy(destroyBase: boolean): void;
+        setFrame(frame: Rectangle): void;
 
     }
 
     export class TilingSprite extends DisplayObjectContainer {
 
-        width: number;
-        height: number;
-        renderable: boolean;
+        constructor(texture: Texture, width: number, height: number);
+
         texture: Texture;
         tint: number;
         tilePosition: Point;
         tileScale: Point;
         tileScaleOffset: Point;
-        blendMode: blendModes;
-
-        constructor(texture: Texture, width: number, height: number);
+        blendMode: number;
 
         generateTilingTexture(forcePowerOfTwo: boolean): void;
+        setTexture(texture: Texture): void;
 
     }
 
     export class TwistFilter extends AbstractFilter {
 
-        size: Point;
         angle: number;
+        offset: Point;
         radius: number;
+
+    }
+
+    export class WebGLBlendModeManager {
+
+        destroy(): void;
+        setBlendMode(blendMode: number): boolean;
 
     }
 
     export class WebGLFastSpriteBatch {
 
-        vertSize: number;
-        maxSize: number;
-        size: number;
-        vertices: Float32Array;
-        indices: Uint16Array;
-        vertextBuffer: any;
-        indexBuffer: any;
-        lastIndexCount: number;
-        drawing: boolean;
+        constructor(gl: WebGLRenderingContext);
+
         currentBatchSize: number;
-        currentBaseTexture: Texture;
+        currentBaseTexture: any;
         currentBlendMode: number;
-        renderSession: any;
+        renderSession: RenderSession;
+        drawing: boolean;
+        verSize: number;
+        masSize: number;
+        size: number;
         shader: any;
         matrix: any;
+        vertices: number[];
+        indices: number[];
+        vertexBuffer: any;
+        indexBuffer: any;
 
-        begin(spriteBatch: any, renderSession: any): void;
         end(): void;
+        begin(spriteBatch: SpriteBatch, renderSession: RenderSession): void;
         flush(): void;
-        render(spriteBatch: any): void;
-        renderSprite(sprite: any): void;
-        stop(): void;
+        render(spriteBatch: SpriteBatch): void;
+        renderSprite(sprite: Sprite): void;
+        setContext(gl: WebGLRenderingContext): void;
         start(): void;
-        setContext(gl: any): void;
-        setBlendMode(blendMode: PIXI.blendModes): void;
+        stop(): void;
 
     }
 
     export class WebGLFilterManager {
 
-        filterStack: IAbstractFilter[];
+        constructor(gl: WebGLRenderingContext, transparent: boolean);
+
+        filterStack: AbstractFilter[];
         transparent: boolean;
         offsetX: number;
         offsetY: number;
 
-        constructor(gl: any, transparent: boolean);
-
         applyFilterPass(filter: AbstractFilter, filterArea: Texture, width: number, height: number): void;
-        begin(renderSession: IRenderSession, buffer: ArrayBuffer): void;
+        begin(renderSession: RenderSession, buffer: ArrayBuffer): void;
         destroy(): void;
         initShaderBuffers(): void;
-        pushFilter(filterBlock: IFilterBlock): void;
         popFilter(): void;
-        setContext(gl: any);
+        pushFilter(filterBlock: FilterBlock): void;
+        setContext(gl: WebGLRenderingContext): void;
 
     }
 
     export class WebGLGraphics {
-
     }
 
     export class WebGLMaskManager {
 
-        constructor(gl: any);
+        constructor(gl: WebGLRenderingContext);
 
         destroy(): void;
-        pushMask(maskData: any[], renderSession: IRenderSession): void;
-        popMask(renderSession: IRenderSession): void;
-        setContext(gl: any);
+        popMask(renderSession: RenderSession): void;
+        pushMask(maskData: any[], renderSession: RenderSession): void;
+        setContext(gl: WebGLRenderingContext): void;
 
     }
 
-    export class WebGLRenderer implements IPixiRenderer {
+    export class WebGLRenderer implements PixiRenderer {
+
+        static createWebGLTexture(texture: Texture, gl: WebGLRenderingContext): void;
+
+        constructor(width?: number, height?: number, view?: HTMLCanvasElement, transparent?: boolean, antialias?: boolean, preserveDrawingBuffer?: boolean);
 
         contextLost: boolean;
-        width: number;
+        contextRestoreLost: boolean;
         height: number;
+        gl: WebGLRenderingContext;
+        preserveDrawingBuffer: Boolean;
         transparent: boolean;
         type: number;
         view: HTMLCanvasElement;
-
-        constructor(width: number, height: number, view?: HTMLCanvasElement, transparent?: boolean, antialias?: boolean);
+        width: number;
 
         destroy(): void;
         render(stage: Stage): void;
-        renderDisplayObject(displayObject: DisplayObject, projection: Point, buffer: any): void;
+        renderDisplayObject(displayObject: DisplayObject, projection: Point, buffer: WebGLBuffer): void;
         resize(width: number, height: number): void;
-
-        static createWebGLTexture(texture: Texture, gl: any): void;
 
     }
 
     export class WebGLShaderManager {
 
-        activatePrimitiveShader(): void;
-        activateShader(shader: PixiShader): void;
-        deactivatePrimitiveShader(): void;
         destroy(): void;
-        setAttribs(attribs: IShaderAttribute[]): void;
-        setContext(gl: any, transparent: boolean);
+        setAttribs(attribs: ShaderAttribute[]): void;
+        setContext(gl: WebGLRenderingContext): void;
+        setShader(shader: WebGLShader): boolean;
 
     }
 
-    export class WebGLShaderUtils {
+    export class WebGLStencilManager {
 
+        constructor(gl: WebGLRenderingContext);
 
+        stencilStack: any[];
+        reverse: boolean;
+        count: number;
+
+        destroy(): void;
+        setContext(gl: WebGLRenderingContext): void;
 
     }
 
     export class WebGLSpriteBatch {
 
-        currentBatchSize: number;
-        currentBaseTexture: any;
-        drawing: boolean;
-        indices: Uint16Array;
-        lastIndexCount: number;
+        constructor(gl: WebGLRenderingContext);
+
+        indices: number[];
         size: number;
-        vertices: Float32Array;
+        vertices: number[];
         vertSize: number;
 
-        constructor(gl: any);
-
-        begin(renderSession: IRenderSession): void;
-        flush(): void;
-        end(): void;
+        begin(renderSession: RenderSession): void;
         destroy(): void;
+        end(): void;
+        flush(): void;
         render(sprite: Sprite): void;
+        renderBatch(texture: Texture, size: number, startIndex: number): void;
         renderTilingSprite(sprite: TilingSprite): void;
         setBlendMode(blendMode: blendModes): void;
-        setContext(gl: any): void;
+        setContext(gl: WebGLRenderingContext): void;
         start(): void;
         stop(): void;
 
     }
+
+    export class RenderTexture extends Texture {
+
+        constructor(width?: number, height?: number, renderer?: PixiRenderer, scaleMode?: scaleModes);
+
+        frame: Rectangle;
+        baseTexture: BaseTexture;
+        renderer: PixiRenderer;
+
+        clear(): void;
+        resize(width: number, height: number, updateBase: boolean): void;
+
+    }
+
 }
 
+declare function requestAnimFrame(): void;
+
 declare module PIXI.PolyK {
-
     export function Triangulate(p: number[]): number[];
-
 }
 
 declare function canUseNewCanvasBlendModes(): boolean;
@@ -1081,12 +1058,16 @@ declare module Phaser {
         complete(): void;
         destroy(): void;
         static generateFrameNames(prefix: string, start: number, stop: number, suffix?: string, zeroPad?: number): string[];
+        next(quantity?: number): void;
         onPause(): void;
         onResume(): void;
         play(frameRate?: number, loop?: boolean, killOnComplete?: boolean): Phaser.Animation;
+        previous(quantity?: number): void;
         restart(): void;
+        setFrame(frameId?: any, useLocalFrameIndex?: boolean): void;
         stop(resetFrame?: boolean, dispatchComplete?: boolean): void;
         update(): boolean;
+        updateFrameData(frameData: FrameData): void;
 
     }
 
@@ -1094,6 +1075,7 @@ declare module Phaser {
 
         constructor(sprite: Phaser.Sprite);
 
+        currentAnim: Phaser.Animation;
         currentFrame: Phaser.Frame;
         frame: number;
         frameData: Phaser.FrameData;
@@ -1108,7 +1090,9 @@ declare module Phaser {
         add(name: string, frames?: any[], frameRate?: number, loop?: boolean, useNumericIndex?: boolean): Phaser.Animation;
         destroy(): void;
         getAnimation(name: string): Phaser.Animation;
+        next(quantity?: number): void;
         play(name: string, frameRate?: number, loop?: boolean, killOnComplete?: boolean): Phaser.Animation;
+        previous(quantity?: number): void;
         refreshFrame();
         stop(name?: string, resetFrame?: boolean): void;
         update(): boolean;
@@ -1118,10 +1102,10 @@ declare module Phaser {
 
     class AnimationParser {
 
-        static JSONData(game: Phaser.Game, json: Object): Phaser.FrameData;
-        static JSONDataHash(game: Phaser.Game, json: Object): Phaser.FrameData;
+        static JSONData(game: Phaser.Game, json: Object, cacheKey: string): Phaser.FrameData;
+        static JSONDataHash(game: Phaser.Game, json: Object, cacheKey: string): Phaser.FrameData;
         static spriteSheet(game: Phaser.Game, key: string, frameWidth: number, frameHeight: number, frameMax?: number, margin?: number, spacing?: number): Phaser.FrameData;
-        static XMLData(game: Phaser.Game, xml: Object): Phaser.FrameData;
+        static XMLData(game: Phaser.Game, xml: Object, cacheKey: string): Phaser.FrameData;
 
     }
 
@@ -1139,6 +1123,7 @@ declare module Phaser {
         getIndex(child: Object): number;
         remove(child: Object): Object;
         reset(): void;
+        setAll(key: Object, value: any): void;
 
 
     }
@@ -1321,7 +1306,7 @@ declare module Phaser {
         getImage(key: string): Object;
         getJSON(key: string): Object;
         getKeys(array: string[]): string[];
-        getPhysicsData(key: string, object?: string, fixtureKey?: string): Object;
+        getPhysicsData(key: string, object?: string, fixtureKey?: string): Object[];
         getSound(key: string): Phaser.Sound;
         getSoundData(key: string): Object;
         getText(key: string): string;
@@ -1455,7 +1440,7 @@ declare module Phaser {
         static getRandomColor(min?: number, max?: number, alpha?: number): number;
         static getRed(color: number): number;
         static getRGB(color: number): Object;
-        static getWebRGB(color: number): string;
+        static getWebRGB(color: any): string;
         static hexToRGB(h: string): number;
         static hexToColor(hex: string, out?: Object): Object;
         static HSLtoRGB(h: number, s: number, l: number, out?: Object): Object;
@@ -1475,6 +1460,21 @@ declare module Phaser {
         static toRGBA(r: number, g: number, b: number, a: number): number;
         static unpackPixel(rgba: number, out?: Object, hsl?: boolean, hsv?: boolean): Object;
         static updateColor(out: any): number;
+    }
+
+    class ComplexPrimitiveShader {
+
+        //where is WebGLContext in TypeScript? "any" is used
+        constructor(gl: any);
+
+        gl: any;
+        program: any;
+        fragmentSrc: any[];
+        vertexSrc: any[];
+
+        destroy(): void;
+        init(): void;
+
     }
 
     interface CursorKeys {
@@ -1795,6 +1795,12 @@ declare module Phaser {
 
         }
 
+        class Pixelate extends Phaser.Filter {
+
+            size: number;
+
+        }
+
         class Plasma extends Phaser.Filter {
 
             constructor(game: Phaser.Game, width: number, height: number, alpha?: number, size?: number);
@@ -1829,7 +1835,7 @@ declare module Phaser {
         }
     }
 
-    class Filter implements PIXI.IAbstractFilter {
+    class Filter implements PIXI.AbstractFilter {
 
         constructor(game: Phaser.Game, ...args: any[]);
 
@@ -1853,12 +1859,14 @@ declare module Phaser {
 
         constructor(index: number, x: number, y: number, width: number, height: number, name: string, uuid: string);
 
+        bottom: number;
         centerX: number;
         centerY: number;
         distance: number;
         height: number;
         index: number;
         name: string;
+        right: number;
         rotated: boolean;
         rotationDirection: string;
         sourceSizeH: number;
@@ -1892,6 +1900,12 @@ declare module Phaser {
 
     }
 
+    interface IGameConfig {
+
+        enableDebug?: boolean;
+
+    }
+
     class Game {
 
         constructor(width?: number, height?: number, renderer?: number, parent?: any, state?: Object, transparent?: boolean, antialias?: boolean, physicsConfig?: Object);
@@ -1901,7 +1915,7 @@ declare module Phaser {
         cache: Phaser.Cache;
         camera: Phaser.Camera;
         canvas: HTMLCanvasElement;
-        config: Object;
+        config: IGameConfig;
         context: Object;
         debug: Phaser.Utils.Debug;
         device: Phaser.Device;
@@ -1924,6 +1938,7 @@ declare module Phaser {
         pendingStep: boolean;
         physics: Phaser.Physics;
         physicsConfig: Object;
+        preserveDrawingBuffer: Boolean;
         raf: Phaser.RequestAnimationFrame;
         renderer: number;
         renderType: number;
@@ -2003,6 +2018,7 @@ declare module Phaser {
         group(parent?: any, name?: string, addToStage?: boolean, enableBody?: boolean, physicsBodyType?: number): Phaser.Group;
         image(x: number, y: number, key: any, frame?: any, group?: Phaser.Group): Phaser.Image;
         physicsGroup(physicsBodyType: number, parent?: any, name?: string, addToStage?: boolean): Phaser.Group;
+        plugin(plugin: Phaser.Plugin, ...parameter: any[]): Phaser.Plugin;
         renderTexture(width?: number, height?: number, key?: string, addToCache?: boolean): Phaser.RenderTexture;
         retroFont(font: string, characterWidth: number, characterHeight: number, chars: string, charsPerRow: number, xSpacing?: number, ySpacing?: number, xOffset?: number, yOffset?: number): Phaser.RetroFont;
         sound(key: string, volume?: number, loop?: number, connect?: boolean): Phaser.Sound;
@@ -2015,7 +2031,7 @@ declare module Phaser {
 
     }
 
-    class GamePad {
+    class Gamepad {
 
         constructor(game: Phaser.Game);
 
@@ -2099,11 +2115,11 @@ declare module Phaser {
         onDownCallback: Function;
         onFloatCallback: Function;
         onUpCallback: Function;
-        pad1: boolean;
-        pad2: boolean;
-        pad3: boolean;
-        pad4: boolean;
-        padsConnected: boolean;
+        pad1: Phaser.SinglePad;
+        pad2: Phaser.SinglePad;
+        pad3: Phaser.SinglePad;
+        pad4: Phaser.SinglePad;
+        padsConnected: number;
         supported: boolean;
 
         addCallbacks(context: Object, callbacks: Object): void;
@@ -2130,7 +2146,7 @@ declare module Phaser {
         onDown: Phaser.Signal;
         onFloat: Phaser.Signal;
         onUp: Phaser.Signal;
-        pad: Phaser.GamePad;
+        pad: Phaser.Gamepad;
         repeats: number;
         timeDown: number;
         timeUp: number;
@@ -2201,13 +2217,15 @@ declare module Phaser {
         type: number;
         z: number;
 
-        add(child: any): any;
+        add(child: any, silent?: boolean): any;
         addAll(property: string, amount: number, checkAlive: boolean, checkVisible: boolean): void;
+        addAt(child: any, index: number, silent?: boolean): any;
         bringToTop(child: any): any;
-        addAt(child: any, index: number): any;
         callAll(method: string, context: any, ...parameters: any[]): void;
         callAllExists(callback: Function, existsValue: boolean, ...parameters: any[]): void;
         callbackFromArray(child: Object, callback: Function, length: number): void;
+        checkAll(key: string[], value: any, checkAlive?: boolean, checkVisible?: boolean, force?: boolean): boolean;
+        checkProperty(child: Object, key: string[], value: any, force?: boolean): boolean;
         countDead(): number;
         countLiving(): number;
         create(x: number, y: number, key: string, frame?: any, exists?: boolean): any;
@@ -2236,9 +2254,9 @@ declare module Phaser {
         postUpdate(): void;
         preUpdate(): void;
         previous(): void;
-        remove(child: any, destroy?: boolean): boolean;
-        removeAll(destroy?: boolean): void;
-        removeBetween(startIndex: number, endIndex?: number, destroy?: boolean): void;
+        remove(child: any, destroy?: boolean, silent?: boolean): boolean;
+        removeAll(destroy?: boolean, silent?: boolean): void;
+        removeBetween(startIndex: number, endIndex?: number, destroy?: boolean, silent?: boolean): void;
         replace(oldChild: any, newChild: any): any;
         reverse(): void;
         sendToBack(child: any): any;
@@ -2316,7 +2334,7 @@ declare module Phaser {
         disabled: boolean;
         doubleTapRate: number;
         game: Phaser.Game;
-        gamepad: Phaser.GamePad;
+        gamepad: Phaser.Gamepad;
         hitCanvas: HTMLCanvasElement;
         hitContext: CanvasRenderingContext2D;
         holdRate: number;
@@ -2415,14 +2433,15 @@ declare module Phaser {
         checkBoundsRect(): void;
         checkBoundsSprite(): void;
         checkPixel(x: number, y: number, pointer?: Phaser.Pointer): boolean;
-        checkPointerDown(pointer: Phaser.Pointer): boolean;
-        checkPointerOver(pointer: Phaser.Pointer): boolean;
+        checkPointerDown(pointer: Phaser.Pointer, fastTest?: boolean): boolean;
+        checkPointerOver(pointer: Phaser.Pointer, fastTest?: boolean): boolean;
         destroy(): void;
         disableDrag(): void;
         disableSnap(): void;
         downDuration(pointer: Phaser.Pointer): number;
         enableDrag(lockCenter?: boolean, bringToTop?: boolean, pixelPerfect?: boolean, alphaThreshold?: number, boundsRect?: Phaser.Rectangle, boundsSprite?: Phaser.Rectangle): void;
         enableSnap(snapX: number, snapY: number, onDrag?: boolean, onRelease?: boolean, snapOffsetX?: number, snapOffsetY?: number): void;
+        isPixelPerfect(): boolean;
         justOut(pointer: number, delay: number): boolean;
         justOver(pointer: number, delay: number): boolean;
         justPressed(pointer: number, delay: number): boolean;
@@ -2447,7 +2466,7 @@ declare module Phaser {
         stopDrag(pointer: Phaser.Pointer): void;
         update(pointer: Phaser.Pointer): void;
         updateDrag(pointer: Phaser.Pointer): boolean;
-        validForInput(highestID: number, highestRenderID: number): boolean;
+        validForInput(highestID: number, highestRenderID: number, includePixelPerfect?: boolean): boolean;
 
     }
 
@@ -2689,6 +2708,7 @@ declare module Phaser {
         onFileError: Phaser.Signal;
         onLoadComplete: Phaser.Signal;
         onLoadStart: Phaser.Signal;
+        onPackComplete: Phaser.Signal;
         preloadSprite: any;
         progress: number;
         progressFloat: number;
@@ -2757,6 +2777,7 @@ declare module Phaser {
         static distance(x1: number, y1: number, x2: number, y2: number): number;
         static distancePow(xy: number, y1: number, x2: number, y2: number, pow?: number): number;
         static distanceRounded(x1: number, y1: number, x2: number, y2: number): number;
+        static factorial(value: number): number;
         static floor(value: number): number;
         static floorTo(value: number, place: number, base: number): number;
         static fuzzyCeil(val: number, epsilon?: number): boolean;
@@ -2820,6 +2841,8 @@ declare module Phaser {
         static MIDDLE_BUTTON: number;
         static NO_BUTTON: number;
         static RIGHT_BUTTON: number;
+        static WHEEL_DOWN: number;
+        static WHEEL_UP: number;
 
         button: number;
         callbackContext: Object;
@@ -2833,14 +2856,17 @@ declare module Phaser {
         mouseOutCallback: Function;
         mouseOverCallback: Function;
         mouseUpCallback: Function;
+        mouseWheelCallback: Function;
         pointerLock: Phaser.Signal;
         stopOnGameOut: boolean;
+        wheelDelta: number;
 
         onMouseDown(event: MouseEvent): void;
         onMouseMove(event: MouseEvent): void;
         onMouseOut(event: MouseEvent): void;
         onMouseOver(event: MouseEvent): void;
         onMouseUp(event: MouseEvent): void;
+        onMouseWheel(event: MouseEvent): void;
         pointerLockChange(event: MouseEvent): void;
         releasePointerLock(): void;
         requestPointerLock(): void;
@@ -3077,7 +3103,7 @@ declare module Phaser {
                 customSeparateX: boolean;
                 customSeparateY: boolean;
                 deltaMax: Phaser.Point;
-                draw: Phaser.Point;
+                drag: Phaser.Point;
                 embedded: boolean;
                 enable: boolean;
                 facing: number;
@@ -3126,7 +3152,7 @@ declare module Phaser {
                 onWall(): void;
                 preUpdate(): void;
                 postUpdate(): void;
-                render(context: Object, body: Phaser.Physics.Arcade.Body, filled?: boolean, color?: string): void;
+                render(context: Object, body: Phaser.Physics.Arcade.Body, color?: string, filled?: boolean): void;
                 renderBodyInfo(debug: Phaser.Utils.Debug, body: Phaser.Physics.Arcade.Body): void;
                 reset(x: number, y: number): void;
                 setSize(width: number, height: number, offsetX?: number, offsetY?: number): void;
@@ -3221,6 +3247,7 @@ declare module Phaser {
                 moveDown(speed: number): void;
                 poseUpdate(): void;
                 preUpdate(): void;
+                render(context: any, body: Phaser.Physics.Ninja.Body, color?: string, filled?: boolean): void;
                 reset(): void;
 
             }
@@ -3249,6 +3276,7 @@ declare module Phaser {
                 collideAABBVsTile(tile: Phaser.Physics.Ninja.Tile): boolean;
                 destroy(): void;
                 integrate(): void;
+                render(context: any, xOffset: number, yOffset: number, color: string, filled: boolean): void; 
                 reportCollisionVsWorld(px: number, py: number, dx: number, dy: number, obj: Object): void;
                 reportCollisionVsBody(px: number, py: number, dx: number, dy: number, obj: Object): void;
                 resolveTile(x: number, y: number, body: Phaser.Physics.Ninja.AABB, tile: Phaser.Physics.Ninja.Tile): boolean;
@@ -3280,6 +3308,7 @@ declare module Phaser {
                 collideWorldBounds(): void;
                 destroy(): void;
                 integrate(): void;
+                render(context: any, xOffset: number, yOffset: number, color: string, filled: boolean): void;
                 reportCollisionVsWorld(px: number, py: number, dx: number, dy: number, obj: Object): void;
                 reportCollisionVsBody(px: number, py: number, dx: number, dy: number, obj: Object): void;
                 resolveCircleTile(x: number, y: number, oH: number, oV: number, obj: Phaser.Physics.Ninja.Circle, t: Phaser.Physics.Ninja.Tile): boolean;
@@ -3328,6 +3357,7 @@ declare module Phaser {
             applySpringForced: boolean;
             bounds: Phaser.Physics.P2.Body;
             boundsCollidesWith: Phaser.Physics.P2.Body[];
+            boundsCollisionGroup: Phaser.Physics.P2.CollisionGroup;
             contactMaterial: Phaser.Physics.P2.ContactMaterial;
             emitImpactEvent: boolean;
             enableBodySleeping: boolean;
@@ -3337,6 +3367,7 @@ declare module Phaser {
             game: Phaser.Game;
             gravity: Phaser.Physics.P2.InversePointProxy;
             materials: Phaser.Physics.P2.Material[];
+            nothingCollisionGroup: Phaser.Physics.P2.CollisionGroup;
             onBodyAdded: Phaser.Signal;
             onBodyRemoved: Phaser.Signal;
             onBeginContact: Phaser.Signal;
@@ -3365,6 +3396,8 @@ declare module Phaser {
             convertCollisionObjects(map: Phaser.Tilemap, layer?: any, addToWorld?: boolean): Phaser.Physics.P2.Body[];
             convertTilemap(map: Phaser.Tilemap, layer?: any, addToWorld?: Boolean, optimize?: boolean): Phaser.Physics.P2.Body[];
             createBody(x: number, y: number, mass: number, addToWorld?: boolean, options?: Object, data?: Object): Phaser.Physics.P2.Body;
+            createCollisionGroup(group?: Phaser.Group): Phaser.Physics.P2.CollisionGroup;
+            createCollisionGroup(group?: Phaser.Sprite): Phaser.Physics.P2.CollisionGroup;
             createContactMaterial(materialA: Phaser.Physics.P2.Material, materialB: Phaser.Physics.P2.Material, options?: number): Phaser.Physics.P2.ContactMaterial;
             createDistanceConstraint(bodyA: any, bodyB: any, distance: number, maxForce?: number): Phaser.Physics.P2.DistanceConstraint;
             createGearConstraint(bodyA: any, bodyB: any, angle?: number, ratio?: number): Phaser.Physics.P2.GearConstraint;
@@ -4033,6 +4066,8 @@ declare module Phaser {
         height: number;
         left: number;
         perimeter: number;
+        randomX: number;
+        randomY: number;
         right: number;
         top: number;
         topLeft: Phaser.Point;
@@ -4080,6 +4115,7 @@ declare module Phaser {
 
         constructor(game: Phaser.Game, width?: number, height?: number, key?: string, scaleMode?: number);
 
+        crop: PIXI.Rectangle;
         game: Phaser.Game;
         key: string;
         type: number;
@@ -4165,7 +4201,7 @@ declare module Phaser {
         halt(): void;
         has(listener: Function, context?: any): boolean;
         remove(listener: Function, context?: any): Function;
-        removeAll(): void;
+        removeAll(context?: any): void;
         toString(): string;
         validateListener(listener: Function, fnName: string): void;
 
@@ -4269,6 +4305,7 @@ declare module Phaser {
         usingWebAudio: boolean;
         volume: number;
 
+        addMarker(name: string, start: number, duration: number, volume?: number, loop?: boolean): void;
         destroy(): void;
         pause(): void;
         play(marker?: string, position?: number, volume?: number, loop?: boolean, forceRestart?: boolean): Phaser.Sound;
@@ -4361,7 +4398,7 @@ declare module Phaser {
         destroy(destroyChildren?: boolean): void;
         drawPolygon(): void;
         kill(): Phaser.Sprite;
-        loadTexture(key: any, frame: any): void;
+        loadTexture(key: any, frame: any, stopAnimation?: boolean): void;
         overlap(displayObject: any): boolean;
         play(name: string, frameRate?: number, loop?: boolean, killOnComplete?: boolean): Phaser.Animation;
         postUpdate(): void;
@@ -4712,6 +4749,7 @@ declare module Phaser {
         setCollisionByExclusion(indexes: any[], collides?: boolean, layer?: any, recalculate?: boolean): void;
         setCollisionByIndex(index: number, collides?: boolean, layer?: number, recalculate?: boolean): void;
         setLayer(layer: any): void;
+        setPreventRecalculate(value: boolean): void;
         setTileIndexCallback(indexes: any, callback: Function, callbackContext: Object, layer?: any): void;
         setTileLocationCallback(x: number, y: number, width: number, height: number, callback: Function, callbackContext: Object, layer?: any): void;
         setTileSize(tileWidth: number, tileHeight: number): void;
@@ -5006,12 +5044,16 @@ declare module Phaser {
     class Utils {
 
         static extend(deep: boolean, target: Object): Object;
+        static getProperty(obj: Object, prop: string): any;
         static isPlainObject(object: Object): boolean;
+        static mixin(from: Object, to: Object): Object;
         static pad(str: string, len: number, pad: number, dir?: number): string;
         static parseDimension(size: any, dimension: number): number;
         static rotateArray<T>(array: T[], direction: any): T;
+        static setProperty(obj: Object, prop: string, value: any): Object;
         static shuffle<T>(array: T[]): T;
         static transposeArray<T>(array: T[]): T;
+
     }
 
     module Utils {
@@ -5083,6 +5125,7 @@ declare module Phaser {
         getObjectsUnderPointer(pointer: Phaser.Pointer, group: Phaser.Group, callback?: Function, callbackContext?: Object): Phaser.Sprite;
         setBounds(x: number, y: number, width: number, height: number): void;
         shutdown(): void;
+        wrap(sprite: any, padding?: number, useBounds?: boolean, horizontal?: boolean, vertical?: boolean): void;
 
     }
 }
