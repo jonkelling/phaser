@@ -287,7 +287,6 @@ Phaser.Game = function (width, height, renderer, parent, state, transparent, ant
 
         if (typeof renderer !== 'undefined')
         {
-            this.renderer = renderer;
             this.renderType = renderer;
         }
 
@@ -321,6 +320,10 @@ Phaser.Game = function (width, height, renderer, parent, state, transparent, ant
     {
         window.setTimeout(this._onBoot, 0);
     }
+    else if(typeof window.cordova !== "undefined")
+    {
+        document.addEventListener('deviceready', this._onBoot, false);
+    }
     else
     {
         document.addEventListener('DOMContentLoaded', this._onBoot, false);
@@ -343,6 +346,11 @@ Phaser.Game.prototype = {
 
         this.config = config;
 
+        if (typeof config['enableDebug'] === 'undefined')
+        {
+            this.config.enableDebug = true;
+        }
+
         if (config['width'])
         {
             this.width = Phaser.Utils.parseDimension(config['width'], 0);
@@ -355,7 +363,6 @@ Phaser.Game.prototype = {
 
         if (config['renderer'])
         {
-            this.renderer = config['renderer'];
             this.renderType = config['renderer'];
         }
 
@@ -586,8 +593,9 @@ Phaser.Game.prototype = {
 
         if (this.device.cocoonJS)
         {
-            //  Enable screencanvas for Cocoon on this Canvas object only
-            this.canvas.screencanvas = true;
+            // Some issue related to scaling arise with Cocoon using screencanvas and webgl renderer.
+            // Disabling by default
+            this.canvas.screencanvas = false;
         }
 
         if (this.renderType === Phaser.HEADLESS || this.renderType === Phaser.CANVAS || (this.renderType === Phaser.AUTO && this.device.webGL === false))
@@ -741,6 +749,8 @@ Phaser.Game.prototype = {
 
         this.raf.stop();
 
+        this.scale.destroy();
+        this.stage.destroy();
         this.input.destroy();
         this.state.destroy();
         this.physics.destroy();

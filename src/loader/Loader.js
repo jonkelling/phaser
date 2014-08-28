@@ -100,6 +100,11 @@ Phaser.Loader = function (game) {
     this.onPackComplete = new Phaser.Signal();
     
     /**
+    * @property {boolean} useXDomainRequest - If true and if the browser supports XDomainRequest, it will be used in preference for xhr when loading json files. It is enabled automatically if the browser is IE9, but you can disable it as required.
+    */
+    this.useXDomainRequest = (this.game.device.ieVersion === 9);
+
+    /**
     * @property {array} _packList - Contains all the assets packs.
     * @private
     */
@@ -1218,11 +1223,11 @@ Phaser.Loader.prototype = {
 
             case 'json':
 
-                if (window.XDomainRequest)
+                if (this.useXDomainRequest && window.XDomainRequest)
                 {
                     this._ajax = new window.XDomainRequest();
 
-                    // XDomainRequest has a few querks. Occasionally it will abort requests
+                    // XDomainRequest has a few quirks. Occasionally it will abort requests
                     // A way to avoid this is to make sure ALL callbacks are set even if not used
                     // More info here: http://stackoverflow.com/questions/15786966/xdomainrequest-aborts-post-on-ie-9
                     this._ajax.timeout = 3000;
@@ -1243,7 +1248,11 @@ Phaser.Loader.prototype = {
 
                     this._ajax.open('GET', this.baseURL + file.url, true);
 
-                    this._ajax.send();
+                    //  Note: The xdr.send() call is wrapped in a timeout to prevent an issue with the interface where some requests are lost 
+                    //  if multiple XDomainRequests are being sent at the same time.
+                    setTimeout(function () {
+                        this._ajax.send();
+                    }, 0);
                 }
                 else
                 {

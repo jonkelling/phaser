@@ -412,12 +412,6 @@ Phaser.Pointer.prototype = {
             return this;
         }
 
-        //  DEPRECATED - Soon to be removed
-        if (this.game.input.moveCallback)
-        {
-            this.game.input.moveCallback.call(this.game.input.moveCallbackContext, this, this.x, this.y);
-        }
-
         var i = this.game.input.moveCallbacks.length;
 
         while (i--)
@@ -432,8 +426,6 @@ Phaser.Pointer.prototype = {
             {
                 this.targetObject = null;
             }
-
-            return this;
         }
         else if (this.game.input.interactiveItems.total > 0)
         {
@@ -450,6 +442,7 @@ Phaser.Pointer.prototype = {
     * @method Phaser.Pointer#processInteractiveObjects
     * @protected
     * @param {boolean} [fromClick=false] - Was this called from the click event?
+    * @return {boolean} True if this method processes an object (i.e. a Sprite becomes the Pointers currentTarget), otherwise false.
     */
     processInteractiveObjects: function (fromClick) {
 
@@ -544,6 +537,8 @@ Phaser.Pointer.prototype = {
                 }
             }
         }
+
+        return (this.targetObject !== null);
 
     },
 

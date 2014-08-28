@@ -5,25 +5,27 @@
 */
 
 /**
-* A TileSprite is a Sprite that has a repeating texture. The texture can be scrolled and scaled and will automatically wrap on the edges as it does so.
-* Please note that TileSprites, as with normal Sprites, have no input handler or physics bodies by default. Both need enabling.
+* A Rope is a Sprite that has a repeating texture. The texture can be scrolled and scaled and will automatically wrap on the edges as it does so.
+* Please note that Ropes, as with normal Sprites, have no input handler or physics bodies by default. Both need enabling.
 *
-* @class Phaser.TileSprite
+* @class Phaser.Rope
 * @constructor
 * @param {Phaser.Game} game - A reference to the currently running game.
-* @param {number} x - The x coordinate (in world space) to position the TileSprite at.
-* @param {number} y - The y coordinate (in world space) to position the TileSprite at.
-* @param {number} width - The width of the TileSprite.
-* @param {number} height - The height of the TileSprite.
-* @param {string|Phaser.RenderTexture|Phaser.BitmapData|PIXI.Texture} key - This is the image or texture used by the TileSprite during rendering. It can be a string which is a reference to the Cache entry, or an instance of a RenderTexture or PIXI.Texture.
-* @param {string|number} frame - If this TileSprite is using part of a sprite sheet or texture atlas you can specify the exact frame to use by giving a string or numeric index.
+* @param {number} x - The x coordinate (in world space) to position the Rope at.
+* @param {number} y - The y coordinate (in world space) to position the Rope at.
+* @param {number} width - The width of the Rope.
+* @param {number} height - The height of the Rope.
+* @param {string|Phaser.RenderTexture|Phaser.BitmapData|PIXI.Texture} key - This is the image or texture used by the Rope during rendering. It can be a string which is a reference to the Cache entry, or an instance of a RenderTexture or PIXI.Texture.
+* @param {string|number} frame - If this Rope is using part of a sprite sheet or texture atlas you can specify the exact frame to use by giving a string or numeric index.
 */
-Phaser.TileSprite = function (game, x, y, width, height, key, frame) {
+Phaser.Rope = function (game, x, y, key, frame, points) {
 
+    this.points = [];
+    this.points = points;
+    this._hasUpdateAnimation = false;
+    this._updateAnimationCallback = null;
     x = x || 0;
     y = y || 0;
-    width = width || 256;
-    height = height || 256;
     key = key || null;
     frame = frame || null;
 
@@ -42,7 +44,7 @@ Phaser.TileSprite = function (game, x, y, width, height, key, frame) {
     * @property {number} type - The const type of this object.
     * @readonly
     */
-    this.type = Phaser.TILESPRITE;
+    this.type = Phaser.ROPE;
 
     /**
     * @property {number} z - The z-depth value of this object within its Group (remember the World is a Group as well). No two objects in a Group can have the same z value.
@@ -82,9 +84,9 @@ Phaser.TileSprite = function (game, x, y, width, height, key, frame) {
     */
     this._scroll = new Phaser.Point();
 
-    PIXI.TilingSprite.call(this, PIXI.TextureCache['__default'], width, height);
+    PIXI.Rope.call(this, key, this.points);
 
-    this.position.set(x, y);
+    this.position.set(x,y);
 
     /**
     * @property {Phaser.InputHandler|null} input - The Input Handler for this object. Needs to be enabled with image.inputEnabled = true before you can use it.
@@ -134,12 +136,6 @@ Phaser.TileSprite = function (game, x, y, width, height, key, frame) {
     this.body = null;
 
     /**
-    * @property {boolean} alive - A useful boolean to control if the TileSprite is alive or dead (in terms of your gameplay, it doesn't effect rendering).
-    * @default
-    */
-    this.alive = true;
-
-    /**
     * A small internal cache:
     * 0 = previous position.x
     * 1 = previous position.y
@@ -154,22 +150,20 @@ Phaser.TileSprite = function (game, x, y, width, height, key, frame) {
     * @private
     */
     this._cache = [ 0, 0, 0, 0, 1, 0, 1, 0, 0 ];
-
     this.loadTexture(key, frame);
 
 };
 
-Phaser.TileSprite.prototype = Object.create(PIXI.TilingSprite.prototype);
-Phaser.TileSprite.prototype.constructor = Phaser.TileSprite;
+Phaser.Rope.prototype = Object.create(PIXI.Rope.prototype);
+Phaser.Rope.prototype.constructor = Phaser.Rope;
 
 /**
 * Automatically called by World.preUpdate.
 *
-* @method Phaser.TileSprite#preUpdate
-* @memberof Phaser.TileSprite
+* @method Phaser.Rope#preUpdate
+* @memberof Phaser.Rope
 */
-Phaser.TileSprite.prototype.preUpdate = function() {
-
+Phaser.Rope.prototype.preUpdate = function() {
     if (this._cache[4] === 1 && this.exists)
     {
         this.world.setTo(this.parent.position.x + this.position.x, this.parent.position.y + this.position.y);
@@ -265,21 +259,23 @@ Phaser.TileSprite.prototype.preUpdate = function() {
 /**
 * Override and use this function in your own custom objects to handle any update requirements you may have.
 *
-* @method Phaser.TileSprite#update
-* @memberof Phaser.TileSprite
+* @method Phaser.Rope#update
+* @memberof Phaser.Rope
 */
-Phaser.TileSprite.prototype.update = function() {
+Phaser.Rope.prototype.update = function() {
+    if(this._hasUpdateAnimation) {
+        this.updateAnimation.call(this);
+    }
 
 };
 
 /**
 * Internal function called by the World postUpdate cycle.
 *
-* @method Phaser.TileSprite#postUpdate
-* @memberof Phaser.TileSprite
+* @method Phaser.Rope#postUpdate
+* @memberof Phaser.Rope
 */
-Phaser.TileSprite.prototype.postUpdate = function() {
-
+Phaser.Rope.prototype.postUpdate = function() {
     if (this.exists && this.body)
     {
         this.body.postUpdate();
@@ -297,48 +293,21 @@ Phaser.TileSprite.prototype.postUpdate = function() {
     {
         this.children[i].postUpdate();
     }
-
 };
 
-/**
-* Sets this TileSprite to automatically scroll in the given direction until stopped via TileSprite.stopScroll().
-* The scroll speed is specified in pixels per second.
-* A negative x value will scroll to the left. A positive x value will scroll to the right.
-* A negative y value will scroll up. A positive y value will scroll down.
-*
-* @method Phaser.TileSprite#autoScroll
-* @memberof Phaser.TileSprite
-* @param {number} x - Horizontal scroll speed in pixels per second.
-* @param {number} y - Vertical scroll speed in pixels per second.
-*/
-Phaser.TileSprite.prototype.autoScroll = function(x, y) {
 
-    this._scroll.set(x, y);
 
-};
 
 /**
-* Stops an automatically scrolling TileSprite.
-*
-* @method Phaser.TileSprite#stopScroll
-* @memberof Phaser.TileSprite
-*/
-Phaser.TileSprite.prototype.stopScroll = function() {
-
-    this._scroll.set(0, 0);
-
-};
-
-/**
-* Changes the Texture the TileSprite is using entirely. The old texture is removed and the new one is referenced or fetched from the Cache.
+* Changes the Texture the Rope is using entirely. The old texture is removed and the new one is referenced or fetched from the Cache.
 * This causes a WebGL texture update, so use sparingly or in low-intensity portions of your game.
 *
-* @method Phaser.TileSprite#loadTexture
-* @memberof Phaser.TileSprite
-* @param {string|Phaser.RenderTexture|Phaser.BitmapData|PIXI.Texture} key - This is the image or texture used by the TileSprite during rendering. It can be a string which is a reference to the Cache entry, or an instance of a RenderTexture, BitmapData or PIXI.Texture.
-* @param {string|number} frame - If this TileSprite is using part of a sprite sheet or texture atlas you can specify the exact frame to use by giving a string or numeric index.
+* @method Phaser.Rope#loadTexture
+* @memberof Phaser.Rope
+* @param {string|Phaser.RenderTexture|Phaser.BitmapData|PIXI.Texture} key - This is the image or texture used by the Rope during rendering. It can be a string which is a reference to the Cache entry, or an instance of a RenderTexture, BitmapData or PIXI.Texture.
+* @param {string|number} frame - If this Rope is using part of a sprite sheet or texture atlas you can specify the exact frame to use by giving a string or numeric index.
 */
-Phaser.TileSprite.prototype.loadTexture = function (key, frame) {
+Phaser.Rope.prototype.loadTexture = function (key, frame) {
 
     frame = frame || 0;
 
@@ -380,14 +349,14 @@ Phaser.TileSprite.prototype.loadTexture = function (key, frame) {
 };
 
 /**
-* Sets the Texture frame the TileSprite uses for rendering.
-* This is primarily an internal method used by TileSprite.loadTexture, although you may call it directly.
+* Sets the Texture frame the Rope uses for rendering.
+* This is primarily an internal method used by Rope.loadTexture, although you may call it directly.
 *
-* @method Phaser.TileSprite#setFrame
-* @memberof Phaser.TileSprite
-* @param {Phaser.Frame} frame - The Frame to be used by the TileSprite texture.
+* @method Phaser.Rope#setFrame
+* @memberof Phaser.Rope
+* @param {Phaser.Frame} frame - The Frame to be used by the Rope texture.
 */
-Phaser.TileSprite.prototype.setFrame = function(frame) {
+Phaser.Rope.prototype.setFrame = function(frame) {
 
     this.texture.frame.x = frame.x;
     this.texture.frame.y = frame.y;
@@ -427,14 +396,14 @@ Phaser.TileSprite.prototype.setFrame = function(frame) {
 };
 
 /**
-* Destroys the TileSprite. This removes it from its parent group, destroys the event and animation handlers if present
+* Destroys the Rope. This removes it from its parent group, destroys the event and animation handlers if present
 * and nulls its reference to game, freeing it up for garbage collection.
 *
-* @method Phaser.TileSprite#destroy
-* @memberof Phaser.TileSprite
+* @method Phaser.Rope#destroy
+* @memberof Phaser.Rope
 * @param {boolean} [destroyChildren=true] - Should every child of this object have its destroy method called?
 */
-Phaser.TileSprite.prototype.destroy = function(destroyChildren) {
+Phaser.Rope.prototype.destroy = function(destroyChildren) {
 
     if (this.game === null || this.destroyPhase) { return; }
 
@@ -487,7 +456,6 @@ Phaser.TileSprite.prototype.destroy = function(destroyChildren) {
 
     this.exists = false;
     this.visible = false;
-    this.alive = false;
 
     this.filters = null;
     this.mask = null;
@@ -501,32 +469,32 @@ Phaser.TileSprite.prototype.destroy = function(destroyChildren) {
 * Play an animation based on the given key. The animation should previously have been added via sprite.animations.add()
 * If the requested animation is already playing this request will be ignored. If you need to reset an already running animation do so directly on the Animation object itself.
 *
-* @method Phaser.TileSprite#play
-* @memberof Phaser.TileSprite
+* @method Phaser.Rope#play
+* @memberof Phaser.Rope
 * @param {string} name - The name of the animation to be played, e.g. "fire", "walk", "jump".
 * @param {number} [frameRate=null] - The framerate to play the animation at. The speed is given in frames per second. If not provided the previously set frameRate of the Animation is used.
 * @param {boolean} [loop=false] - Should the animation be looped after playback. If not provided the previously set loop value of the Animation is used.
 * @param {boolean} [killOnComplete=false] - If set to true when the animation completes (only happens if loop=false) the parent Sprite will be killed.
 * @return {Phaser.Animation} A reference to playing Animation instance.
 */
-Phaser.TileSprite.prototype.play = function (name, frameRate, loop, killOnComplete) {
+Phaser.Rope.prototype.play = function (name, frameRate, loop, killOnComplete) {
 
     return this.animations.play(name, frameRate, loop, killOnComplete);
 
 };
 
 /**
-* Resets the TileSprite. This places the TileSprite at the given x/y world coordinates, resets the tilePosition and then
+* Resets the Rope. This places the Rope at the given x/y world coordinates, resets the tilePosition and then
 * sets alive, exists, visible and renderable all to true. Also resets the outOfBounds state.
-* If the TileSprite has a physics body that too is reset.
+* If the Rope has a physics body that too is reset.
 *
-* @method Phaser.TileSprite#reset
-* @memberof Phaser.TileSprite
+* @method Phaser.Rope#reset
+* @memberof Phaser.Rope
 * @param {number} x - The x coordinate (in world space) to position the Sprite at.
 * @param {number} y - The y coordinate (in world space) to position the Sprite at.
-* @return (Phaser.TileSprite) This instance.
+* @return (Phaser.Rope) This instance.
 */
-Phaser.TileSprite.prototype.reset = function(x, y) {
+Phaser.Rope.prototype.reset = function(x, y) {
 
     this.world.setTo(x, y);
     this.position.x = x;
@@ -556,10 +524,10 @@ Phaser.TileSprite.prototype.reset = function(x, y) {
 * Values outside this range are added to or subtracted from 360 to obtain a value within the range. For example, the statement player.angle = 450 is the same as player.angle = 90.
 * If you wish to work in radians instead of degrees use the property Sprite.rotation instead. Working in radians is also a little faster as it doesn't have to convert the angle.
 *
-* @name Phaser.TileSprite#angle
+* @name Phaser.Rope#angle
 * @property {number} angle - The angle of this Sprite in degrees.
 */
-Object.defineProperty(Phaser.TileSprite.prototype, "angle", {
+Object.defineProperty(Phaser.Rope.prototype, "angle", {
 
     get: function() {
 
@@ -576,10 +544,10 @@ Object.defineProperty(Phaser.TileSprite.prototype, "angle", {
 });
 
 /**
-* @name Phaser.TileSprite#frame
+* @name Phaser.Rope#frame
 * @property {number} frame - Gets or sets the current frame index and updates the Texture Cache for display.
 */
-Object.defineProperty(Phaser.TileSprite.prototype, "frame", {
+Object.defineProperty(Phaser.Rope.prototype, "frame", {
 
     get: function () {
         return this.animations.frame;
@@ -597,10 +565,10 @@ Object.defineProperty(Phaser.TileSprite.prototype, "frame", {
 });
 
 /**
-* @name Phaser.TileSprite#frameName
+* @name Phaser.Rope#frameName
 * @property {string} frameName - Gets or sets the current frame name and updates the Texture Cache for display.
 */
-Object.defineProperty(Phaser.TileSprite.prototype, "frameName", {
+Object.defineProperty(Phaser.Rope.prototype, "frameName", {
 
     get: function () {
         return this.animations.frameName;
@@ -618,14 +586,14 @@ Object.defineProperty(Phaser.TileSprite.prototype, "frameName", {
 });
 
 /**
-* An TileSprite that is fixed to the camera uses its x/y coordinates as offsets from the top left of the camera. These are stored in TileSprite.cameraOffset.
+* A Rope that is fixed to the camera uses its x/y coordinates as offsets from the top left of the camera. These are stored in Rope.cameraOffset.
 * Note that the cameraOffset values are in addition to any parent in the display list.
-* So if this TileSprite was in a Group that has x: 200, then this will be added to the cameraOffset.x
+* So if this Rope was in a Group that has x: 200, then this will be added to the cameraOffset.x
 *
-* @name Phaser.TileSprite#fixedToCamera
-* @property {boolean} fixedToCamera - Set to true to fix this TileSprite to the Camera at its current world coordinates.
+* @name Phaser.Rope#fixedToCamera
+* @property {boolean} fixedToCamera - Set to true to fix this Rope to the Camera at its current world coordinates.
 */
-Object.defineProperty(Phaser.TileSprite.prototype, "fixedToCamera", {
+Object.defineProperty(Phaser.Rope.prototype, "fixedToCamera", {
 
     get: function () {
 
@@ -649,14 +617,14 @@ Object.defineProperty(Phaser.TileSprite.prototype, "fixedToCamera", {
 });
 
 /**
-* TileSprite.exists controls if the core game loop and physics update this TileSprite or not.
-* When you set TileSprite.exists to false it will remove its Body from the physics world (if it has one) and also set TileSprite.visible to false.
-* Setting TileSprite.exists to true will re-add the Body to the physics world (if it has a body) and set TileSprite.visible to true.
+* Rope.exists controls if the core game loop and physics update this Rope or not.
+* When you set Rope.exists to false it will remove its Body from the physics world (if it has one) and also set Rope.visible to false.
+* Setting Rope.exists to true will re-add the Body to the physics world (if it has a body) and set Rope.visible to true.
 *
-* @name Phaser.TileSprite#exists
-* @property {boolean} exists - If the TileSprite is processed by the core game update and physics.
+* @name Phaser.Rope#exists
+* @property {boolean} exists - If the Rope is processed by the core game update and physics.
 */
-Object.defineProperty(Phaser.TileSprite.prototype, "exists", {
+Object.defineProperty(Phaser.Rope.prototype, "exists", {
 
     get: function () {
 
@@ -696,13 +664,13 @@ Object.defineProperty(Phaser.TileSprite.prototype, "exists", {
 });
 
 /**
-* By default a TileSprite won't process any input events at all. By setting inputEnabled to true the Phaser.InputHandler is
+* By default a Rope won't process any input events at all. By setting inputEnabled to true the Phaser.InputHandler is
 * activated for this object and it will then start to process click/touch events and more.
 *
-* @name Phaser.TileSprite#inputEnabled
+* @name Phaser.Rope#inputEnabled
 * @property {boolean} inputEnabled - Set to true to allow this object to receive input events.
 */
-Object.defineProperty(Phaser.TileSprite.prototype, "inputEnabled", {
+Object.defineProperty(Phaser.Rope.prototype, "inputEnabled", {
 
     get: function () {
 
@@ -737,12 +705,12 @@ Object.defineProperty(Phaser.TileSprite.prototype, "inputEnabled", {
 });
 
 /**
-* The position of the TileSprite on the x axis relative to the local coordinates of the parent.
+* The position of the Rope on the x axis relative to the local coordinates of the parent.
 *
-* @name Phaser.TileSprite#x
-* @property {number} x - The position of the TileSprite on the x axis relative to the local coordinates of the parent.
+* @name Phaser.Rope#x
+* @property {number} x - The position of the Rope on the x axis relative to the local coordinates of the parent.
 */
-Object.defineProperty(Phaser.TileSprite.prototype, "x", {
+Object.defineProperty(Phaser.Rope.prototype, "x", {
 
     get: function () {
 
@@ -764,12 +732,12 @@ Object.defineProperty(Phaser.TileSprite.prototype, "x", {
 });
 
 /**
-* The position of the TileSprite on the y axis relative to the local coordinates of the parent.
+* The position of the Rope on the y axis relative to the local coordinates of the parent.
 *
-* @name Phaser.TileSprite#y
-* @property {number} y - The position of the TileSprite on the y axis relative to the local coordinates of the parent.
+* @name Phaser.Rope#y
+* @property {number} y - The position of the Rope on the y axis relative to the local coordinates of the parent.
 */
-Object.defineProperty(Phaser.TileSprite.prototype, "y", {
+Object.defineProperty(Phaser.Rope.prototype, "y", {
 
     get: function () {
 
@@ -791,10 +759,64 @@ Object.defineProperty(Phaser.TileSprite.prototype, "y", {
 });
 
 /**
-* @name Phaser.TileSprite#destroyPhase
+* A Rope will call it's updateAnimation function on each update loop if it has one
+*
+* @name Phaser.Rope#updateAnimation
+* @property {function} updateAnimation - Set to a function if you'd like the rope to animate during the update phase. Set to false or null to remove it.
+*/
+Object.defineProperty(Phaser.Rope.prototype, "updateAnimation", {
+
+    get: function () {
+
+        return this._updateAnimation;
+
+    },
+
+    set: function (value) {
+        if(value && typeof value === 'function') {
+            this._hasUpdateAnimation = true;
+            this._updateAnimation = value;
+        } else {
+            this._hasUpdateAnimation = false;
+            this._updateAnimation = null;
+        }
+
+    }
+
+});
+
+/**
+* The segments that make up the rope body as an array of Phaser.Rectangles
+*
+* @name Phaser.Rope#segments
+* @property {array} updateAnimation - Returns an array of Phaser.Rectangles that represent the segments of the given rope
+*/
+Object.defineProperty(Phaser.Rope.prototype, "segments", {
+    get: function() {
+        var segments = [];
+        var index, x1, y1, x2, y2, width, height, rect;
+        for(var i = 0; i < this.points.length; i++) {
+            index = i * 4;
+            x1 = this.verticies[index];
+            y1 = this.verticies[index + 1];
+            x2 = this.verticies[index + 4];
+            y2 = this.verticies[index + 3];
+            width = Phaser.Math.difference(x1,x2);
+            height = Phaser.Math.difference(y1,y2);
+            x1 += this.world.x;
+            y1 += this.world.y;
+            rect = new Phaser.Rectangle(x1,y1, width, height);
+            segments.push(rect);
+        }
+        return segments;
+    }
+});
+
+/**
+* @name Phaser.Rope#destroyPhase
 * @property {boolean} destroyPhase - True if this object is currently being destroyed.
 */
-Object.defineProperty(Phaser.TileSprite.prototype, "destroyPhase", {
+Object.defineProperty(Phaser.Rope.prototype, "destroyPhase", {
 
     get: function () {
 

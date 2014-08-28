@@ -251,32 +251,21 @@ Phaser.Image.prototype.loadTexture = function (key, frame) {
             return;
         }
 
-        if (this.game.cache.isSpriteSheet(key))
+        this.key = key;
+
+        var frameData = this.game.cache.getFrameData(key);
+
+        if (typeof frame === 'string')
         {
-            this.key = key;
-
-            var frameData = this.game.cache.getFrameData(key);
-
-            if (typeof frame === 'string')
-            {
-                this._frame = 0;
-                this._frameName = frame;
-                this.setTexture(PIXI.TextureCache[frameData.getFrameByName(frame).uuid]);
-                return;
-            }
-            else
-            {
-                this._frame = frame;
-                this._frameName = '';
-                this.setTexture(PIXI.TextureCache[frameData.getFrame(frame).uuid]);
-                return;
-            }
+            this._frame = 0;
+            this._frameName = frame;
+            this.setTexture(PIXI.TextureCache[frameData.getFrameByName(frame).uuid]);
         }
         else
         {
-            this.key = key;
-            this.setTexture(PIXI.TextureCache[key]);
-            return;
+            this._frame = frame;
+            this._frameName = '';
+            this.setTexture(PIXI.TextureCache[frameData.getFrame(frame).uuid]);
         }
     }
 
@@ -396,6 +385,11 @@ Phaser.Image.prototype.destroy = function(destroyChildren) {
     if (typeof destroyChildren === 'undefined') { destroyChildren = true; }
 
     this._cache[8] = 1;
+
+    if (this.events)
+    {
+        this.events.onDestroy.dispatch(this);
+    }
 
     if (this.parent)
     {
@@ -613,7 +607,7 @@ Object.defineProperty(Phaser.Image.prototype, "frame", {
 
     set: function(value) {
 
-        if (value !== this.frame && this.game.cache.isSpriteSheet(this.key))
+        if (value !== this.frame)
         {
             var frameData = this.game.cache.getFrameData(this.key);
 
@@ -642,7 +636,7 @@ Object.defineProperty(Phaser.Image.prototype, "frameName", {
 
     set: function(value) {
 
-        if (value !== this.frameName && this.game.cache.isSpriteSheet(this.key))
+        if (value !== this.frameName)
         {
             var frameData = this.game.cache.getFrameData(this.key);
 
