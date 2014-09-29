@@ -37,7 +37,7 @@ POI: River Mora
 Cairhien *
 
 Capital: Cairhien
-Cities: Eianrod, Jurene, Maerone, Morelle, Selean, Taien, Tremonsien
+Cities: Eianrod *, Jurene, Maerone, Morelle, Selean, Taien, Tremonsien
 
 Ghealdan *
 

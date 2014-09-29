@@ -13647,10 +13647,16 @@ Phaser.Physics.P2 = function (game, config) {
     }
 
     /**
+    * @property {object} config - The p2 World configuration object.
+    * @protected
+    */
+    this.config = config;
+
+    /**
     * @property {p2.World} world - The p2 World in which the simulation is run.
     * @protected
     */
-    this.world = new p2.World(config);
+    this.world = new p2.World(this.config);
 
     /**
     * @property {number} frameRate - The frame rate the world will be stepped at. Defaults to 1 / 60, but you can change here. Also see useElapsedTime property.
@@ -14383,12 +14389,19 @@ Phaser.Physics.P2.prototype = {
     * Adds a Spring to the world.
     *
     * @method Phaser.Physics.P2#addSpring
-    * @param {Phaser.Physics.P2.Spring} spring - The Spring to add to the World.
+    * @param {Phaser.Physics.P2.Spring|p2.LinearSpring|p2.RotationalSpring} spring - The Spring to add to the World.
     * @return {Phaser.Physics.P2.Spring} The Spring that was added.
     */
     addSpring: function (spring) {
 
-        this.world.addSpring(spring);
+        if (spring instanceof Phaser.Physics.P2.Spring || spring instanceof Phaser.Physics.P2.RotationalSpring)
+        {
+            this.world.addSpring(spring.data);
+        }
+        else
+        {
+            this.world.addSpring(spring);
+        }
 
         this.onSpringAdded.dispatch(spring);
 
@@ -14405,7 +14418,14 @@ Phaser.Physics.P2.prototype = {
     */
     removeSpring: function (spring) {
 
-        this.world.removeSpring(spring);
+        if (spring instanceof Phaser.Physics.P2.Spring || spring instanceof Phaser.Physics.P2.RotationalSpring)
+        {
+            this.world.removeSpring(spring.data);
+        }
+        else
+        {
+            this.world.removeSpring(spring);
+        }
 
         this.onSpringRemoved.dispatch(spring);
 
@@ -14420,10 +14440,12 @@ Phaser.Physics.P2.prototype = {
     * @param {Phaser.Sprite|Phaser.Physics.P2.Body|p2.Body} bodyA - First connected body.
     * @param {Phaser.Sprite|Phaser.Physics.P2.Body|p2.Body} bodyB - Second connected body.
     * @param {number} distance - The distance to keep between the bodies.
+    * @param {Array} [localAnchorA] - The anchor point for bodyA, defined locally in bodyA frame. Defaults to [0,0].
+    * @param {Array} [localAnchorB] - The anchor point for bodyB, defined locally in bodyB frame. Defaults to [0,0].
     * @param {number} [maxForce] - The maximum force that should be applied to constrain the bodies.
     * @return {Phaser.Physics.P2.DistanceConstraint} The constraint
     */
-    createDistanceConstraint: function (bodyA, bodyB, distance, maxForce) {
+    createDistanceConstraint: function (bodyA, bodyB, distance, localAnchorA, localAnchorB, maxForce) {
 
         bodyA = this.getBody(bodyA);
         bodyB = this.getBody(bodyB);
@@ -14434,7 +14456,7 @@ Phaser.Physics.P2.prototype = {
         }
         else
         {
-            return this.addConstraint(new Phaser.Physics.P2.DistanceConstraint(this, bodyA, bodyB, distance, maxForce));
+            return this.addConstraint(new Phaser.Physics.P2.DistanceConstraint(this, bodyA, bodyB, distance, localAnchorA, localAnchorB, maxForce));
         }
 
     },
@@ -15740,13 +15762,13 @@ Phaser.Physics.P2.PointProxy.prototype.constructor = Phaser.Physics.P2.PointProx
 
 /**
 * @name Phaser.Physics.P2.PointProxy#x
-* @property {number} x - The x property of this PointProxy.
+* @property {number} x - The x property of this PointProxy get and set in pixels.
 */
 Object.defineProperty(Phaser.Physics.P2.PointProxy.prototype, "x", {
 
     get: function () {
 
-        return this.destination[0];
+        return this.world.mpx(this.destination[0]);
 
     },
 
@@ -15760,9 +15782,49 @@ Object.defineProperty(Phaser.Physics.P2.PointProxy.prototype, "x", {
 
 /**
 * @name Phaser.Physics.P2.PointProxy#y
-* @property {number} y - The y property of this PointProxy.
+* @property {number} y - The y property of this PointProxy get and set in pixels.
 */
 Object.defineProperty(Phaser.Physics.P2.PointProxy.prototype, "y", {
+
+    get: function () {
+
+        return this.world.mpx(this.destination[1]);
+
+    },
+
+    set: function (value) {
+
+        this.destination[1] = this.world.pxm(value);
+
+    }
+
+});
+
+/**
+* @name Phaser.Physics.P2.PointProxy#mx
+* @property {number} mx - The x property of this PointProxy get and set in meters.
+*/
+Object.defineProperty(Phaser.Physics.P2.PointProxy.prototype, "mx", {
+
+    get: function () {
+
+        return this.destination[0];
+
+    },
+
+    set: function (value) {
+
+        this.destination[0] = value;
+
+    }
+
+});
+
+/**
+* @name Phaser.Physics.P2.PointProxy#my
+* @property {number} my - The x property of this PointProxy get and set in meters.
+*/
+Object.defineProperty(Phaser.Physics.P2.PointProxy.prototype, "my", {
 
     get: function () {
 
@@ -15772,7 +15834,7 @@ Object.defineProperty(Phaser.Physics.P2.PointProxy.prototype, "y", {
 
     set: function (value) {
 
-        this.destination[1] = this.world.pxm(value);
+        this.destination[1] = value;
 
     }
 
@@ -15804,9 +15866,49 @@ Phaser.Physics.P2.InversePointProxy.prototype.constructor = Phaser.Physics.P2.In
 
 /**
 * @name Phaser.Physics.P2.InversePointProxy#x
-* @property {number} x - The x property of this InversePointProxy.
+* @property {number} x - The x property of this InversePointProxy get and set in pixels.
 */
 Object.defineProperty(Phaser.Physics.P2.InversePointProxy.prototype, "x", {
+
+    get: function () {
+
+        return this.world.mpxi(this.destination[0]);
+
+    },
+
+    set: function (value) {
+
+        this.destination[0] = this.world.pxmi(value);
+
+    }
+
+});
+
+/**
+* @name Phaser.Physics.P2.InversePointProxy#y
+* @property {number} y - The y property of this InversePointProxy get and set in pixels.
+*/
+Object.defineProperty(Phaser.Physics.P2.InversePointProxy.prototype, "y", {
+
+    get: function () {
+
+        return this.world.mpxi(this.destination[1]);
+
+    },
+
+    set: function (value) {
+
+        this.destination[1] = this.world.pxmi(value);
+
+    }
+
+});
+
+/**
+* @name Phaser.Physics.P2.InversePointProxy#mx
+* @property {number} mx - The x property of this InversePointProxy get and set in meters.
+*/
+Object.defineProperty(Phaser.Physics.P2.InversePointProxy.prototype, "mx", {
 
     get: function () {
 
@@ -15816,17 +15918,17 @@ Object.defineProperty(Phaser.Physics.P2.InversePointProxy.prototype, "x", {
 
     set: function (value) {
 
-        this.destination[0] = this.world.pxm(-value);
+        this.destination[0] = -value;
 
     }
 
 });
 
 /**
-* @name Phaser.Physics.P2.InversePointProxy#y
-* @property {number} y - The y property of this InversePointProxy.
+* @name Phaser.Physics.P2.InversePointProxy#my
+* @property {number} my - The y property of this InversePointProxy get and set in meters.
 */
-Object.defineProperty(Phaser.Physics.P2.InversePointProxy.prototype, "y", {
+Object.defineProperty(Phaser.Physics.P2.InversePointProxy.prototype, "my", {
 
     get: function () {
 
@@ -15836,7 +15938,7 @@ Object.defineProperty(Phaser.Physics.P2.InversePointProxy.prototype, "y", {
 
     set: function (value) {
 
-        this.destination[1] = this.world.pxm(-value);
+        this.destination[1] = -value;
 
     }
 
@@ -16762,7 +16864,7 @@ Phaser.Physics.P2.Body.prototype = {
     *
     * @method Phaser.Physics.P2.Body#addCapsule
     * @param {number} length - The distance between the end points in pixels.
-    * @param {number} radius - Radius of the capsule in radians.
+    * @param {number} radius - Radius of the capsule in pixels.
     * @param {number} [offsetX=0] - Local horizontal offset of the shape relative to the body center of mass.
     * @param {number} [offsetY=0] - Local vertical offset of the shape relative to the body center of mass.
     * @param {number} [rotation=0] - Local rotation of the shape relative to the body center of mass, specified in radians.
@@ -16770,7 +16872,7 @@ Phaser.Physics.P2.Body.prototype = {
     */
     addCapsule: function (length, radius, offsetX, offsetY, rotation) {
 
-        var shape = new p2.Capsule(this.world.pxm(length), radius);
+        var shape = new p2.Capsule(this.world.pxm(length), this.world.pxm(radius));
 
         return this.addShape(shape, offsetX, offsetY, rotation);
 
@@ -17588,6 +17690,8 @@ Object.defineProperty(Phaser.Physics.P2.Body.prototype, "debug", {
 /**
 * A Body can be set to collide against the World bounds automatically if this is set to true. Otherwise it will leave the World.
 * Note that this only applies if your World has bounds! The response to the collision should be managed via CollisionMaterials.
+* Also note that when you set this it will only effect Body shapes that already exist. If you then add further shapes to your Body
+* after setting this it will *not* proactively set them to collide with the bounds.
 *
 * @name Phaser.Physics.P2.Body#collideWorldBounds
 * @property {boolean} collideWorldBounds - Should the Body collide with the World bounds?
@@ -18112,11 +18216,15 @@ Phaser.Physics.P2.Spring = function (world, bodyA, bodyB, restLength, stiffness,
         options.localAnchorB = [ world.pxm(localB[0]), world.pxm(localB[1]) ];
     }
 
-    p2.LinearSpring.call(this, bodyA, bodyB, options);
+    /**
+    * @property {p2.LinearSpring} data - The actual p2 spring object.
+    */
+    this.data = new p2.LinearSpring(bodyA, bodyB, options);
+
+    this.data.parent = this;
 
 };
 
-Phaser.Physics.P2.Spring.prototype = Object.create(p2.LinearSpring.prototype);
 Phaser.Physics.P2.Spring.prototype.constructor = Phaser.Physics.P2.Spring;
 
 /**
@@ -18165,11 +18273,15 @@ Phaser.Physics.P2.RotationalSpring = function (world, bodyA, bodyB, restAngle, s
         damping: damping
     };
 
-    p2.RotationalSpring.call(this, bodyA, bodyB, options);
+    /**
+    * @property {p2.RotationalSpring} data - The actual p2 spring object.
+    */
+    this.data = new p2.RotationalSpring(bodyA, bodyB, options);
+
+    this.data.parent = this;
 
 };
 
-Phaser.Physics.P2.Spring.prototype = Object.create(p2.RotationalSpring.prototype);
 Phaser.Physics.P2.Spring.prototype.constructor = Phaser.Physics.P2.Spring;
 
 /**

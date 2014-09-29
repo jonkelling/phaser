@@ -8,7 +8,6 @@
 * Creates a rotational spring, connecting two bodies. A spring can have a resting length, a stiffness and damping.
 *
 * @class Phaser.Physics.P2.RotationalSpring
-* @classdesc Physics Spring Constructor
 * @constructor
 * @param {Phaser.Physics.P2} world - A reference to the P2 World.
 * @param {p2.Body} bodyA - First connected body.
@@ -44,9 +43,13 @@ Phaser.Physics.P2.RotationalSpring = function (world, bodyA, bodyB, restAngle, s
         damping: damping
     };
 
-    p2.RotationalSpring.call(this, bodyA, bodyB, options);
+    /**
+    * @property {p2.RotationalSpring} data - The actual p2 spring object.
+    */
+    this.data = new p2.RotationalSpring(bodyA, bodyB, options);
+
+    this.data.parent = this;
 
 };
 
-Phaser.Physics.P2.Spring.prototype = Object.create(p2.RotationalSpring.prototype);
 Phaser.Physics.P2.Spring.prototype.constructor = Phaser.Physics.P2.Spring;

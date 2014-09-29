@@ -4,9 +4,15 @@
         public $file;
         public $blocks;
 
+        public $class;
         public $consts;
         public $methods;
         public $properties;
+
+        public $docgen;
+        public $processLog;
+
+        public $corrupted;
 
         /**
         * Processes the given JS source file.
@@ -14,12 +20,26 @@
         * @param mixed $file
         * @return Processor
         */
-        public function __construct($file)
+        public function __construct($docgen, $file)
         {
+            $this->docgen = $docgen;
+
+            $this->class = null;
             $this->consts = [];
-            $this->methhods = [];
+            $this->methods = [];
             $this->properties = [];
             $this->file = $file;
+
+            $this->corrupted = false;
+
+            $this->methods['private'] = [];
+            $this->methods['protected'] = [];
+            $this->methods['public'] = [];
+            $this->methods['static'] = [];
+
+            $this->properties['private'] = [];
+            $this->properties['protected'] = [];
+            $this->properties['public'] = [];
 
             $this->scanFile();
         }
@@ -60,7 +80,10 @@
                     //  The first element is always the opening /** so remove it
                     array_shift($chunk);
 
-                    $this->blocks[] = new Block($openLine, $closeLine, $js[$i + 1], $chunk);
+                    if (isset($js[$i + 1]))
+                    {
+                        $this->blocks[] = new Block($openLine, $closeLine, $js[$i + 1], $chunk);
+                    }
                 }
                 else
                 {
@@ -71,22 +94,148 @@
             //  Process the data into our documentation types
             for ($i = 0; $i < $this->total(); $i++)
             {
-                if ($this->blocks[$i]->isConst)
+                if ($this->blocks[$i]->isClass)
                 {
-                    $this->consts[] = new Constant($this->blocks[$i]);
+                    $tempClass = new ClassDesc($this, $this->blocks[$i]);
+                    $this->class = $tempClass;
+
+                    if ($tempClass->corrupted)
+                    {
+                        $this->corrupted = true;
+                    }
+                }
+                else if ($this->blocks[$i]->isConst)
+                {
+                    $tempConst = new Constant($this, $this->blocks[$i]);
+
+                    $this->consts[$tempConst->name] = $tempConst;
                 }
                 else if ($this->blocks[$i]->isMethod)
                 {
-                    $this->methods[] = new Method($this->blocks[$i]);
+                    $tempMethod = new Method($this, $this->blocks[$i]);
+
+                    if ($tempMethod->isPublic)
+                    {
+                        $this->methods['public'][$tempMethod->name] = $tempMethod;
+                    }
+                    else if ($tempMethod->isProtected)
+                    {
+                        $this->methods['protected'][$tempMethod->name] = $tempMethod;
+                    }
+                    else if ($tempMethod->isPrivate)
+                    {
+                        $this->methods['private'][$tempMethod->name] = $tempMethod;
+                    }
+                    else if ($tempMethod->isStatic)
+                    {
+                        $this->methods['static'][$tempMethod->name] = $tempMethod;
+                    }
                 }
                 else if ($this->blocks[$i]->isProperty)
                 {
-                    $this->properties[] = new Property($this->blocks[$i]);
+                    $tempProperty = new Property($this, $this->blocks[$i]);
+
+                    if ($tempProperty->corrupted === false)
+                    {
+                        if ($tempProperty->isPublic)
+                        {
+                            $this->properties['public'][$tempProperty->name] = $tempProperty;
+                        }
+                        else if ($tempProperty->isProtected)
+                        {
+                            $this->properties['protected'][$tempProperty->name] = $tempProperty;
+                        }
+                        else if ($tempProperty->isPrivate)
+                        {
+                            $this->properties['private'][$tempProperty->name] = $tempProperty;
+                        }
+                    }
                 }
             }
 
+            if ($this->class === null)
+            {
+                $this->corrupted = true;
+            }
+
+            //  Alphabetically sort the arrays based on the key
+            ksort($this->consts);
+
+            ksort($this->methods['public']);
+            ksort($this->methods['protected']);
+            ksort($this->methods['private']);
+            ksort($this->methods['static']);
+
+            ksort($this->properties['public']);
+            ksort($this->properties['protected']);
+            ksort($this->properties['private']);
+
+        }
+
+        public function getPublicProperties()
+        {
+            return $this->properties['public'];
+        }
+
+        public function getPublicMethods($exclude = null)
+        {
+            if (is_array($exclude))
+            {
+                //  Get everything not already in the given array
+                $output = [];
+
+                foreach ($this->methods as $key => $value)
+                {
+                    if (!array_key_exists($key, $exclude))
+                    {
+                        $output[$key] = $value;
+                    }
+                }
+
+                return $output;
+            }
+            else
+            {
+                return $this->methods['public'];
+            }
+
+        }
+       
+        public function getArray()
+        {
+            $consts = [];
+            $methods = [];
+            $properties = [];
+
+            foreach ($this->consts as $key => $value)
+            {
+                $consts[] = $value->getArray();
+            }
+
+            foreach ($this->methods as $key => $value)
+            {
+                $methods[] = $value->getArray();
+            }
+
+            foreach ($this->properties as $key => $value)
+            {
+                $properties[] = $value->getArray();
+            }
+
+            return array(
+                'class' => $this->class->getArray(),
+                'consts' => $consts,
+                'methods' => $methods,
+                'properties' => $properties
+            );
+            
         }
         
+        public function getJSON()
+        {
+            return json_encode($this->getArray());
+        }
+
         public function getConstsArray()
         {
             $out = [];
@@ -99,12 +248,107 @@
             return $out;
         }
 
+        public function extend()
+        {
+            //  Quick bailout
+            if (!$this->class->extendsFrom())
+            {
+                echo "quick bailout\n";
+                return;
+            }
+
+            $proc = $this;
+
+            do
+            {
+                $extends = $proc->class->extends;
+                $proc = $this->docgen->get($extends);
+                echo "\n\nextend found: " . $proc->getName() . "\n";
+
+                $this->merge($proc);
+            }
+            while ($proc->class->extendsFrom());
+
+        }
+
+        public function merge($processor)
+        {
+            echo "Merging ...\n\n";
+
+            //  We only want to merge in public methods and properties.
+            //  Technically JavaScript merges in bloody everything, but for the sake of docs we'll keep them #public# only.
+
+            echo "Methods\n";
+            echo "-------\n";
+
+            $inheritedMethods = $processor->getPublicMethods($this->getPublicMethods());
+
+            //  Flag them as inherited
+            foreach ($inheritedMethods as $key => $method)
+            {
+                echo $method->name . "\n";
+                $method->inherited = true;
+                $method->inheritedFrom = $processor->getName();
+            }
+
+            //  We should only merge methods not already defined
+            $this->methods['public'] = array_merge($this->methods['public'], $inheritedMethods);
+
+            echo "\n";
+            echo "Properties\n";
+            echo "----------\n";
+
+            $inheritedProperties = $processor->getPublicProperties();
+
+            //  Flag them as inherited!
+            foreach ($inheritedProperties as $key => $property)
+            {
+                echo $property->name . "\n";
+                $property->inherited = true;
+                $property->inheritedFrom = $processor->getName();
+            }
+
+            $this->properties['public'] = array_merge($this->properties['public'], $inheritedProperties);
+
+        }
+
         /**
         * The total number of blocks scanned.
         */
         public function total()
         {
             return count($this->blocks);
+        }
+
+        public function log($text) {
+
+            $this->processLog[] = $text;
+
+        }
+
+        public function getLog() {
+
+            return $this->processLog;
+            // return array_reverse($this->processLog);
+
+        }
+
+        public function getName() {
+
+            return $this->class->name;
+
+        }
+
+        public function __toString()
+        {
+            if ($this->corrupted)
+            {
+                return "JSDoc Corrupted Class";
+            }
+            else
+            {
+                return "Class: " . $this->class->name . ", Methods: " . count($this->methods['public']) . ", Properties: " . count($this->properties['public']) . "\n";
+            }
         }
 
     }

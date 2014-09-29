@@ -6,12 +6,10 @@
 */
 
 /**
-* Phaser loader constructor.
 * The Loader handles loading all external content such as Images, Sounds, Texture Atlases and data files.
 * It uses a combination of Image() loading and xhr and provides progress and completion callbacks.
+*
 * @class Phaser.Loader
-* @classdesc  The Loader handles loading all external content such as Images, Sounds, Texture Atlases and data files.
-* It uses a combination of Image() loading and xhr and provides progress and completion callbacks.
 * @constructor
 * @param {Phaser.Game} game - A reference to the currently running game.
 */
@@ -49,8 +47,9 @@ Phaser.Loader = function (game) {
     /**
     * You can optionally link a sprite to the preloader.
     * If you do so the Sprites width or height will be cropped based on the percentage loaded.
-    * @property {Phaser.Sprite|Phaser.Image} preloadSprite
-    * @default
+    * This property is an object containing: sprite, rect, direction, width and height
+    *
+    * @property {object} preloadSprite
     */
     this.preloadSprite = null;
 
@@ -95,10 +94,10 @@ Phaser.Loader = function (game) {
     this.onLoadComplete = new Phaser.Signal();
 
     /**
-    * @property {Phaser.Signal} onPackComplete - This event is dispatched when an asset pack has either loaded or failed. 
+    * @property {Phaser.Signal} onPackComplete - This event is dispatched when an asset pack has either loaded or failed.
     */
     this.onPackComplete = new Phaser.Signal();
-    
+
     /**
     * @property {boolean} useXDomainRequest - If true and if the browser supports XDomainRequest, it will be used in preference for xhr when loading json files. It is enabled automatically if the browser is IE9, but you can disable it as required.
     */
@@ -185,7 +184,6 @@ Phaser.Loader.prototype = {
     * You can set a Sprite to be a "preload" sprite by passing it to this method.
     * A "preload" sprite will have its width or height crop adjusted based on the percentage of the loader in real-time.
     * This allows you to easily make loading bars for games. Note that Sprite.visible = true will be set when calling this.
-    * Note: The Sprite should use a single image and not use a texture that is part of a Texture Atlas or Sprite Sheet.
     *
     * @method Phaser.Loader#setPreloadSprite
     * @param {Phaser.Sprite|Phaser.Image} sprite - The sprite or image that will be cropped during the load.
@@ -217,7 +215,7 @@ Phaser.Loader.prototype = {
     /**
     * Check whether asset exists with a specific key.
     * Use Phaser.Cache to access loaded assets, e.g. Phaser.Cache#checkImageKey
-    * 
+    *
     * @method Phaser.Loader#checkKeyExists
     * @param {string} type - The type asset you want to check.
     * @param {string} key - Key of the asset you want to check.
@@ -502,6 +500,32 @@ Phaser.Loader.prototype = {
     },
 
     /**
+    * Add an XML file to the Loader.
+    *
+    * @method Phaser.Loader#xml
+    * @param {string} key - Unique asset key of the xml file.
+    * @param {string} url - URL of the xml file.
+    * @param {boolean} [overwrite=false] - If an unloaded file with a matching key already exists in the queue, this entry will overwrite it.
+    * @return {Phaser.Loader} This Loader instance.
+    */
+    xml: function (key, url, overwrite) {
+
+        if (typeof overwrite === "undefined") { overwrite = false; }
+
+        if (overwrite)
+        {
+            this.replaceInFileList('xml', key, url);
+        }
+        else
+        {
+            this.addToFileList('xml', key, url);
+        }
+
+        return this;
+
+    },
+
+    /**
     * Add a JavaScript file to the Loader. Once loaded the JavaScript file will be automatically turned into a script tag (and executed), so be careful what you load!
     * You can also specify a callback. This will be executed as soon as the script tag has been created.
     *
@@ -585,6 +609,26 @@ Phaser.Loader.prototype = {
         if (typeof autoDecode === "undefined") { autoDecode = true; }
 
         this.addToFileList('audio', key, urls, { buffer: null, autoDecode: autoDecode });
+
+        return this;
+
+    },
+
+    /**
+     * Add a new audiosprite file to the loader. Audio Sprites are a combination of audio files and a JSON configuration.
+     * The JSON follows the format of that created by https://github.com/tonistiigi/audiosprite
+     *
+     * @method Phaser.Loader#audiosprite
+     * @param {string} key - Unique asset key of the audio file.
+     * @param {Array|string} urls - An array containing the URLs of the audio files, i.e.: [ 'audiosprite.mp3', 'audiosprite.ogg', 'audiosprite.m4a' ] or a single string containing just one URL.
+     * @param {string} atlasURL - The URL of the audiosprite configuration json.
+     * @return {Phaser.Loader} This Loader instance.
+     */
+    audiosprite: function(key, urls, atlasURL) {
+
+        this.audio(key, urls);
+
+        this.json(key + '-audioatlas', atlasURL);
 
         return this;
 
@@ -976,7 +1020,7 @@ Phaser.Loader.prototype = {
             console.warn('Phaser.Loader loadPackList invalid index ' + this._packIndex);
             return;
         }
-        
+
         var pack = this._packList[this._packIndex];
 
         if (pack.data !== null)
@@ -1042,6 +1086,10 @@ Phaser.Loader.prototype = {
 
                     case "json":
                         this.json(file.key, file.url, file.overwrite);
+                        break;
+
+                    case "xml":
+                        this.xml(file.key, file.url, file.overwrite);
                         break;
 
                     case "script":
@@ -1151,11 +1199,11 @@ Phaser.Loader.prototype = {
             console.warn('Phaser.Loader loadFile invalid index ' + this._fileIndex);
             return;
         }
-        
+
         var file = this._fileList[this._fileIndex];
         var _this = this;
 
-        this.onFileStart.dispatch(this.progress, file.key);
+        this.onFileStart.dispatch(this.progress, file.key, file.url);
 
         //  Image or Data?
         switch (file.type)
@@ -1235,7 +1283,7 @@ Phaser.Loader.prototype = {
                     this._ajax.onerror = function () {
                         return _this.dataLoadError(_this._fileIndex);
                     };
-                       
+
                     this._ajax.ontimeout = function () {
                         return _this.dataLoadError(_this._fileIndex);
                     };
@@ -1248,7 +1296,7 @@ Phaser.Loader.prototype = {
 
                     this._ajax.open('GET', this.baseURL + file.url, true);
 
-                    //  Note: The xdr.send() call is wrapped in a timeout to prevent an issue with the interface where some requests are lost 
+                    //  Note: The xdr.send() call is wrapped in a timeout to prevent an issue with the interface where some requests are lost
                     //  if multiple XDomainRequests are being sent at the same time.
                     setTimeout(function () {
                         this._ajax.send();
@@ -1259,6 +1307,11 @@ Phaser.Loader.prototype = {
                     this.xhrLoad(this._fileIndex, this.baseURL + file.url, 'text', 'jsonLoadComplete', 'dataLoadError');
                 }
 
+                break;
+
+            case 'xml':
+
+                this.xhrLoad(this._fileIndex, this.baseURL + file.url, 'text', 'xmlLoadComplete', 'dataLoadError');
                 break;
 
             case 'tilemap':
@@ -1292,7 +1345,7 @@ Phaser.Loader.prototype = {
 
     /**
     * Starts the xhr loader.
-    * 
+    *
     * @method Phaser.Loader#xhrLoad
     * @private
     * @param {number} index - The index of the file to load from the file list.
@@ -1322,7 +1375,7 @@ Phaser.Loader.prototype = {
 
     /**
     * Private method ONLY used by loader.
-    * 
+    *
     * @method Phaser.Loader#getAudioURL
     * @private
     * @param {array|string} urls - Either an array of audio file URLs or a string containing a single URL path.
@@ -1611,6 +1664,12 @@ Phaser.Loader.prototype = {
     */
     xmlLoadComplete: function (index) {
 
+        if (this._xhr.responseType !== '' && this._xhr.responseType !== 'text')
+        {
+            console.warn('Invalid XML Response Type', this._fileList[index]);
+            console.warn(this._xhr);
+        }
+
         var data = this._xhr.responseText;
         var xml;
 
@@ -1641,13 +1700,17 @@ Phaser.Loader.prototype = {
         var file = this._fileList[index];
         file.loaded = true;
 
-        if (file.type == 'bitmapfont')
+        if (file.type === 'bitmapfont')
         {
             this.game.cache.addBitmapFont(file.key, file.url, file.data, xml, file.xSpacing, file.ySpacing);
         }
-        else if (file.type == 'textureatlas')
+        else if (file.type === 'textureatlas')
         {
             this.game.cache.addTextureAtlas(file.key, file.url, file.data, xml, file.format);
+        }
+        else if (file.type === 'xml')
+        {
+            this.game.cache.addXML(file.key, file.url, xml);
         }
 
         this.nextFile(index, true);
@@ -1677,13 +1740,13 @@ Phaser.Loader.prototype = {
             if (this.preloadSprite.direction === 0)
             {
                 this.preloadSprite.rect.width = Math.floor((this.preloadSprite.width / 100) * this.progress);
-                this.preloadSprite.sprite.crop(this.preloadSprite.rect);
             }
             else
             {
                 this.preloadSprite.rect.height = Math.floor((this.preloadSprite.height / 100) * this.progress);
-                this.preloadSprite.sprite.crop(this.preloadSprite.rect);
             }
+
+            this.preloadSprite.sprite.updateCrop();
         }
 
         this.onFileComplete.dispatch(this.progress, this._fileList[previousIndex].key, success, this.totalLoadedFiles(), this._fileList.length);

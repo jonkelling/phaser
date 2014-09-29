@@ -10,7 +10,6 @@
 * @class Phaser.Device
 * @constructor
 */
-
 Phaser.Device = function (game) {
 
     /**
@@ -37,6 +36,12 @@ Phaser.Device = function (game) {
     * @default
     */
     this.cocoonJS = false;
+    
+    /**
+    * @property {boolean} cocoonJSApp - Is this game running with CocoonJS.App?
+    * @default
+    */
+    this.cocoonJSApp = false;
     
     /**
     * @property {boolean} cordova - Is the game running under Apache Cordova?
@@ -644,16 +649,18 @@ Phaser.Device.prototype = {
             this.cordova = true;
         }
         
-        if(typeof process !== "undefined" && typeof require !== "undefined")
+        if (typeof process !== "undefined" && typeof require !== "undefined")
         {
             this.node = true;
         }
         
-        if(this.node)
+        if (this.node)
         {
             try {
                 this.nodeWebkit = (typeof require('nw.gui') !== "undefined");
-            } catch(error) {
+            }
+            catch(error)
+            {
                 this.nodeWebkit = false;
             }
         }
@@ -661,6 +668,17 @@ Phaser.Device.prototype = {
         if (navigator['isCocoonJS'])
         {
             this.cocoonJS = true;
+        }
+        
+        if (this.cocoonJS)
+        {
+            try {
+                this.cocoonJSApp = (typeof CocoonJS !== "undefined");
+            }
+            catch(error)
+            {
+                this.cocoonJSApp = false;
+            }
         }
 
         if (typeof window.ejecta !== "undefined")
