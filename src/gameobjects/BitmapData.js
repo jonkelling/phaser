@@ -193,6 +193,12 @@ Phaser.BitmapData = function (game, key, width, height) {
     */
     this._tempB = 0;
 
+    /**
+    * @property {Phaser.Circle} _circle - Internal cache var.
+    * @private
+    */
+    this._circle = new Phaser.Circle();
+
 };
 
 Phaser.BitmapData.prototype = {
@@ -889,6 +895,17 @@ Phaser.BitmapData.prototype = {
                 tx += source.texture.trim.x - source.anchor.x * source.texture.trim.width;
                 ty += source.texture.trim.y - source.anchor.y * source.texture.trim.height;
             }
+
+            if (source.tint !== 0xFFFFFF)
+            {
+                if (source.cachedTint !== source.tint)
+                {
+                    source.cachedTint = source.tint;
+                    source.tintedTexture = PIXI.CanvasTinter.getTintedTexture(source, source.tint);
+                }
+
+                this._image = source.tintedTexture;
+            }
         }
         else
         {
@@ -1061,6 +1078,34 @@ Phaser.BitmapData.prototype = {
     },
 
     /**
+    * Sets the shadow properties of this BitmapDatas context which will affect all draw operations made to it.
+    * You can cancel an existing shadow by calling this method and passing no parameters.
+    * Note: At the time of writing (October 2014) Chrome still doesn't support shadowBlur used with drawImage.
+    *
+    * @method Phaser.BitmapData#shadow
+    * @param {string} color - The color of the shadow, given in a CSS format, i.e. `#000000` or `rgba(0,0,0,1)`. If `null` or `undefined` the shadow will be reset.
+    * @param {number} [blur=5] - The amount the shadow will be blurred by. Low values = a crisp shadow, high values = a softer shadow.
+    * @param {number} [x=10] - The horizontal offset of the shadow in pixels.
+    * @param {number} [y=10] - The vertical offset of the shadow in pixels.
+    * @return {Phaser.BitmapData} This BitmapData object for method chaining.
+    */
+    shadow: function (color, blur, x, y) {
+
+        if (typeof color === 'undefined' || color === null)
+        {
+            this.context.shadowColor = 'rgba(0,0,0,0)';
+        }
+        else
+        {
+            this.context.shadowColor = color;
+            this.context.shadowBlur = blur || 5;
+            this.context.shadowOffsetX = x || 10;
+            this.context.shadowOffsetY = y || 10;
+        }
+
+    },
+
+    /**
     * Draws the image onto this BitmapData using an image as an alpha mask.
     *
     * @method Phaser.BitmapData#alphaMask
@@ -1193,6 +1238,39 @@ Phaser.BitmapData.prototype = {
         this.context.closePath();
 
         this.context.fill();
+
+        return this;
+
+    },
+
+    /**
+    * Takes the given Line object and image and renders it to this BitmapData as a repeating texture line.
+    *
+    * @method Phaser.BitmapData#textureLine
+    * @param {Phaser.Line} line - A Phaser.Line object that will be used to plot the start and end of the line.
+    * @param {string} key - The key of an image in the Phaser.Cache to use as the texture for this line.
+    * @param {string} [repeat='repeat-x'] - The pattern repeat mode to use when drawing the line. Either `repeat`, `repeat-x` or `no-repeat`.
+    * @return {Phaser.BitmapData} This BitmapData object for method chaining.
+    */
+    textureLine: function (line, key, repeat) {
+
+        if (typeof repeat === 'undefined') { repeat = 'repeat-x'; }
+
+        var image = this.game.cache.getImage(key);
+
+        this.context.fillStyle = this.context.createPattern(image, repeat);
+
+        this._circle = new Phaser.Circle(line.start.x, line.start.y, image.height);
+
+        this._circle.circumferencePoint(line.angle - 1.5707963267948966, false, this._pos);
+
+        this.context.save();
+        this.context.translate(this._pos.x, this._pos.y);
+        this.context.rotate(line.angle);
+        this.context.fillRect(0, 0, line.length, image.height);
+        this.context.restore();
+
+        this.dirty = true;
 
         return this;
 
