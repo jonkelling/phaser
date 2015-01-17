@@ -8,6 +8,8 @@
 /**
 * The Loader handles loading all external content such as Images, Sounds, Texture Atlases and data files.
 * It uses a combination of Image() loading and xhr and provides progress and completion callbacks.
+* Texture Atlases can be created with tools such as [Texture Packer](https://www.codeandweb.com/texturepacker/phaser) and
+* [Shoebox](http://renderhjs.net/shoebox/)
 *
 * @class Phaser.Loader
 * @constructor
@@ -94,14 +96,14 @@ Phaser.Loader = function (game) {
     this.onLoadComplete = new Phaser.Signal();
 
     /**
-    * @property {Phaser.Signal} onPackComplete - This event is dispatched when an asset pack has either loaded or failed.
+    * @property {Phaser.Signal} onPackComplete - This event is dispatched when the asset pack manifest file has loaded and successfully added its contents to the loader queue.
     */
     this.onPackComplete = new Phaser.Signal();
 
     /**
-    * @property {boolean} useXDomainRequest - If true and if the browser supports XDomainRequest, it will be used in preference for xhr when loading json files. It is enabled automatically if the browser is IE9, but you can disable it as required.
+    * @property {boolean} useXDomainRequest - If true and if the browser supports XDomainRequest, it will be used in preference for xhr when loading json files. This is only relevant for IE9 when you know your server/CDN requires it.
     */
-    this.useXDomainRequest = (this.game.device.ieVersion === 9);
+    this.useXDomainRequest = false;
 
     /**
     * @property {array} _packList - Contains all the assets packs.
@@ -209,6 +211,23 @@ Phaser.Loader.prototype = {
         sprite.crop(this.preloadSprite.rect);
 
         sprite.visible = true;
+
+    },
+
+    /**
+    * Called automatically by ScaleManager when the game resizes in RESIZE scalemode.
+    * We use this to adjust the height of the preloading sprite, if set.
+    *
+    * @method Phaser.Loader#resize
+    * @param {number} width - The new width of the game in pixels.
+    * @param {number} height - The new height of the game in pixels.
+    */
+    resize: function () {
+
+        if (this.preloadSprite && this.preloadSprite.height !== this.preloadSprite.sprite.height)
+        {
+            this.preloadSprite.rect.height = this.preloadSprite.sprite.height;
+        }
 
     },
 
@@ -600,7 +619,7 @@ Phaser.Loader.prototype = {
     *
     * @method Phaser.Loader#audio
     * @param {string} key - Unique asset key of the audio file.
-    * @param {Array|string} urls - An array containing the URLs of the audio files, i.e.: [ 'jump.mp3', 'jump.ogg', 'jump.m4a' ] or a single string containing just one URL.
+    * @param {Array|string} urls - An array containing the URLs of the audio files, i.e.: [ 'jump.mp3', 'jump.ogg', 'jump.m4a' ] or a single string containing just one URL. BLOB urls are supported, but note that Phaser will not validate the audio file's type if a BLOB is provided; the user should ensure that a BLOB url is playable.
     * @param {boolean} autoDecode - When using Web Audio the audio files can either be decoded at load time or run-time. They can't be played until they are decoded, but this let's you control when that happens. Decoding is a non-blocking async process.
     * @return {Phaser.Loader} This Loader instance.
     */
@@ -796,6 +815,8 @@ Phaser.Loader.prototype = {
 
     /**
     * Add a new texture atlas to the loader. This atlas uses the JSON Array data format.
+    * Texture Atlases can be created with tools such as [Texture Packer](https://www.codeandweb.com/texturepacker/phaser) and
+    * [Shoebox](http://renderhjs.net/shoebox/)
     *
     * @method Phaser.Loader#atlasJSONArray
     * @param {string} key - Unique asset key of the texture atlas file.
@@ -812,6 +833,8 @@ Phaser.Loader.prototype = {
 
     /**
     * Add a new texture atlas to the loader. This atlas uses the JSON Hash data format.
+    * Texture Atlases can be created with tools such as [Texture Packer](https://www.codeandweb.com/texturepacker/phaser) and
+    * [Shoebox](http://renderhjs.net/shoebox/)
     *
     * @method Phaser.Loader#atlasJSONHash
     * @param {string} key - Unique asset key of the texture atlas file.
@@ -844,6 +867,8 @@ Phaser.Loader.prototype = {
 
     /**
     * Add a new texture atlas to the loader.
+    * Texture Atlases can be created with tools such as [Texture Packer](https://www.codeandweb.com/texturepacker/phaser) and
+    * [Shoebox](http://renderhjs.net/shoebox/)
     *
     * @method Phaser.Loader#atlas
     * @param {string} key - Unique asset key of the texture atlas file.
@@ -1299,7 +1324,7 @@ Phaser.Loader.prototype = {
                     //  Note: The xdr.send() call is wrapped in a timeout to prevent an issue with the interface where some requests are lost
                     //  if multiple XDomainRequests are being sent at the same time.
                     setTimeout(function () {
-                        this._ajax.send();
+                        _this._ajax.send();
                     }, 0);
                 }
                 else
@@ -1389,13 +1414,23 @@ Phaser.Loader.prototype = {
         for (var i = 0; i < urls.length; i++)
         {
             extension = urls[i].toLowerCase();
+
+            if (extension.substr(0,5) === "blob:")
+            {
+                return urls[i];
+            }
+
             extension = extension.substr((Math.max(0, extension.lastIndexOf(".")) || Infinity) + 1);
+
+            if (extension.indexOf("?") >= 0)
+            {
+                extension = extension.substr(0, extension.indexOf("?"));
+            }
 
             if (this.game.device.canPlayAudio(extension))
             {
                 return urls[i];
             }
-
         }
 
         return null;

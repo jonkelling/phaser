@@ -13628,8 +13628,10 @@ p2.Body.prototype.parent = null;
 p2.Spring.prototype.parent = null;
 
 /**
+* This is your main access to the P2 Physics World.
+* From here you can create materials, listen for events and add bodies into the physics simulation.
+* 
 * @class Phaser.Physics.P2
-* @classdesc Physics World Constructor
 * @constructor
 * @param {Phaser.Game} game - Reference to the current game instance.
 * @param {object} [config] - Physics configuration object passed in from the game constructor.
@@ -13641,9 +13643,21 @@ Phaser.Physics.P2 = function (game, config) {
     */
     this.game = game;
 
-    if (typeof config === 'undefined' || !config.hasOwnProperty('gravity') || !config.hasOwnProperty('broadphase'))
+    if (typeof config === 'undefined')
     {
         config = { gravity: [0, 0], broadphase: new p2.SAPBroadphase() };
+    }
+    else
+    {
+        if (!config.hasOwnProperty('gravity'))
+        {
+            config.gravity = [0, 0];
+        }
+
+        if (!config.hasOwnProperty('broadphase'))
+        {
+            config.broadphase = new p2.SAPBroadphase();
+        }
     }
 
     /**
@@ -13972,16 +13986,16 @@ Phaser.Physics.P2.prototype = {
     */
     postBroadphaseHandler: function (event) {
 
-        var i = event.pairs.length;
-
-        if (this.postBroadphaseCallback && i > 0)
+        if (!this.postBroadphaseCallback || event.pairs.length === 0)
         {
-            while (i -= 2)
+            return;
+        }
+
+        for (var i = event.pairs.length - 2; i >= 0; i -= 2)
+        {
+            if (event.pairs[i].parent && event.pairs[i+1].parent && !this.postBroadphaseCallback.call(this.callbackContext, event.pairs[i].parent, event.pairs[i+1].parent))
             {
-                if (event.pairs[i].parent && event.pairs[i+1].parent && !this.postBroadphaseCallback.call(this.callbackContext, event.pairs[i].parent, event.pairs[i+1].parent))
-                {
-                    event.pairs.splice(i, 2);
-                }
+                event.pairs.splice(i, 2);
             }
         }
 
@@ -14288,7 +14302,7 @@ Phaser.Physics.P2.prototype = {
     */
     update: function () {
 
-        // Do nothing when the pysics engine was paused before
+        // Do nothing if the physics engine was paused before
         if (this.paused)
         {
             return;
@@ -14306,13 +14320,83 @@ Phaser.Physics.P2.prototype = {
     },
 
     /**
+    * Called by Phaser.Physics when a State swap occurs.
+    * Starts the begin and end Contact listeners again.
+    *
+    * @method Phaser.Physics.P2#reset
+    */
+    reset: function () {
+
+        this.world.on("beginContact", this.beginContactHandler, this);
+        this.world.on("endContact", this.endContactHandler, this);
+
+        this.nothingCollisionGroup = new Phaser.Physics.P2.CollisionGroup(1);
+        this.boundsCollisionGroup = new Phaser.Physics.P2.CollisionGroup(2);
+        this.everythingCollisionGroup = new Phaser.Physics.P2.CollisionGroup(2147483648);
+
+        this._collisionGroupID = 2;
+
+        this.setBoundsToWorld(true, true, true, true, false);
+
+    },
+
+    /**
     * Clears all bodies from the simulation, resets callbacks and resets the collision bitmask.
+    * 
+    * The P2 world is also cleared:
+    * 
+    * * Removes all solver equations
+    * * Removes all constraints
+    * * Removes all bodies
+    * * Removes all springs
+    * * Removes all contact materials
+    * 
+    * This is called automatically when you switch state.
     *
     * @method Phaser.Physics.P2#clear
     */
     clear: function () {
 
-        this.world.clear();
+        this.world.time = 0;
+        this.world.fixedStepTime = 0;
+
+        // Remove all solver equations
+        if (this.world.solver && this.world.solver.equations.length)
+        {
+            this.world.solver.removeAllEquations();
+        }
+
+        // Remove all constraints
+        var cs = this.world.constraints;
+
+        for (var i = cs.length - 1; i >= 0; i--)
+        {
+            this.world.removeConstraint(cs[i]);
+        }
+
+        // Remove all bodies
+        var bodies = this.world.bodies;
+
+        for (var i = bodies.length - 1; i >= 0; i--)
+        {
+            this.world.removeBody(bodies[i]);
+        }
+
+        // Remove all springs
+        var springs = this.world.springs;
+
+        for (var i = springs.length - 1; i >= 0; i--)
+        {
+            this.world.removeSpring(springs[i]);
+        }
+
+        // Remove all contact materials
+        var cms = this.world.contactMaterials;
+
+        for (var i = cms.length - 1; i >= 0; i--)
+        {
+            this.world.removeContactMaterial(cms[i]);
+        }
 
         this.world.off("beginContact", this.beginContactHandler, this);
         this.world.off("endContact", this.endContactHandler, this);
@@ -14323,7 +14407,6 @@ Phaser.Physics.P2.prototype = {
 
         this.collisionGroups = [];
         this._toRemove = [];
-        this._collisionGroupID = 2;
         this.boundsCollidesWith = [];
 
     },
@@ -15522,7 +15605,6 @@ Object.defineProperty(Phaser.Physics.P2.prototype, "total", {
 * during runtime (to remove parts, set masks, categories & sensor properties)
 *
 * @class Phaser.Physics.P2.FixtureList
-* @classdesc Collection for generated P2 fixtures 
 * @constructor
 * @param {Array} list - A list of fixtures (from Phaser.Physics.P2.Body#addPhaserPolygon)
 */
@@ -15746,7 +15828,6 @@ Phaser.Physics.P2.FixtureList.prototype = {
 * A PointProxy is an internal class that allows for direct getter/setter style property access to Arrays and TypedArrays.
 *
 * @class Phaser.Physics.P2.PointProxy
-* @classdesc PointProxy
 * @constructor
 * @param {Phaser.Physics.P2} world - A reference to the P2 World.
 * @param {any} destination - The object to bind to.
@@ -15850,7 +15931,6 @@ Object.defineProperty(Phaser.Physics.P2.PointProxy.prototype, "my", {
 * A InversePointProxy is an internal class that allows for direct getter/setter style property access to Arrays and TypedArrays but inverses the values on set.
 *
 * @class Phaser.Physics.P2.InversePointProxy
-* @classdesc InversePointProxy
 * @constructor
 * @param {Phaser.Physics.P2} world - A reference to the P2 World.
 * @param {any} destination - The object to bind to.
@@ -15959,7 +16039,6 @@ Object.defineProperty(Phaser.Physics.P2.InversePointProxy.prototype, "my", {
 * Note: When a game object is given a P2 body it has its anchor x/y set to 0.5, so it becomes centered.
 *
 * @class Phaser.Physics.P2.Body
-* @classdesc Physics Body Constructor
 * @constructor
 * @param {Phaser.Game} game - Game reference to the currently running game.
 * @param {Phaser.Sprite} [sprite] - The Sprite object this physics body belongs to.
@@ -16008,12 +16087,12 @@ Phaser.Physics.P2.Body = function (game, sprite, x, y, mass) {
     this.data.parent = this;
 
     /**
-    * @property {Phaser.InversePointProxy} velocity - The velocity of the body. Set velocity.x to a negative value to move to the left, position to the right. velocity.y negative values move up, positive move down.
+    * @property {Phaser.Physics.P2.InversePointProxy} velocity - The velocity of the body. Set velocity.x to a negative value to move to the left, position to the right. velocity.y negative values move up, positive move down.
     */
     this.velocity = new Phaser.Physics.P2.InversePointProxy(this.world, this.data.velocity);
 
     /**
-    * @property {Phaser.InversePointProxy} force - The force applied to the body.
+    * @property {Phaser.Physics.P2.InversePointProxy} force - The force applied to the body.
     */
     this.force = new Phaser.Physics.P2.InversePointProxy(this.world, this.data.force);
 
@@ -16624,6 +16703,11 @@ Phaser.Physics.P2.Body.prototype = {
             this.sprite.rotation = this.data.angle;
         }
 
+        if (this.debugBody)
+        {
+            this.debugBody.updateSpriteTransform();
+        }
+
     },
 
     /**
@@ -16716,7 +16800,7 @@ Phaser.Physics.P2.Body.prototype = {
 
         if (this.debugBody)
         {
-            this.debugBody.destroy();
+            this.debugBody.destroy(true, true);
         }
 
         this.debugBody = null;
@@ -17734,7 +17818,6 @@ Object.defineProperty(Phaser.Physics.P2.Body.prototype, "collideWorldBounds", {
 * So use sparingly and rarely (if ever) in production code.
 *
 * @class Phaser.Physics.P2.BodyDebug
-* @classdesc Physics Body Debug Constructor
 * @constructor
 * @extends Phaser.Group
 * @param {Phaser.Game} game - Game reference to the currently running game.
@@ -17790,25 +17873,13 @@ Phaser.Utils.extend(Phaser.Physics.P2.BodyDebug.prototype, {
     /**
     * Core update.
     *
-    * @method Phaser.Physics.P2.BodyDebug#update
-    */
-    update: function() {
-
-        this.updateSpriteTransform();
-
-    },
-
-    /**
-    * Core update.
-    *
     * @method Phaser.Physics.P2.BodyDebug#updateSpriteTransform
     */
     updateSpriteTransform: function() {
 
         this.position.x = this.body.position[0] * this.ppu;
         this.position.y = this.body.position[1] * this.ppu;
-
-        return this.rotation = this.body.angle;
+        this.rotation = this.body.angle;
 
     },
 
@@ -17905,7 +17976,7 @@ Phaser.Utils.extend(Phaser.Physics.P2.BodyDebug.prototype, {
         if (typeof color === 'undefined') { color = 0xffffff; }
         g.lineStyle(lineWidth, 0x000000, 1);
         g.beginFill(color, 1.0);
-        g.drawCircle(x, y, -radius);
+        g.drawCircle(x, y, -radius*2);
         g.endFill();
         g.moveTo(x, y);
         g.lineTo(x + radius * Math.cos(-angle), y + radius * Math.sin(-angle));
@@ -18159,7 +18230,6 @@ Phaser.Utils.extend(Phaser.Physics.P2.BodyDebug.prototype, {
 * Creates a linear spring, connecting two bodies. A spring can have a resting length, a stiffness and damping.
 *
 * @class Phaser.Physics.P2.Spring
-* @classdesc Physics Spring Constructor
 * @constructor
 * @param {Phaser.Physics.P2} world - A reference to the P2 World.
 * @param {p2.Body} bodyA - First connected body.
@@ -18237,7 +18307,6 @@ Phaser.Physics.P2.Spring.prototype.constructor = Phaser.Physics.P2.Spring;
 * Creates a rotational spring, connecting two bodies. A spring can have a resting length, a stiffness and damping.
 *
 * @class Phaser.Physics.P2.RotationalSpring
-* @classdesc Physics Spring Constructor
 * @constructor
 * @param {Phaser.Physics.P2} world - A reference to the P2 World.
 * @param {p2.Body} bodyA - First connected body.
@@ -18291,11 +18360,13 @@ Phaser.Physics.P2.Spring.prototype.constructor = Phaser.Physics.P2.Spring;
 */
 
 /**
+* A P2 Material.
+* 
 * \o/ ~ "Because I'm a Material girl"
 *
 * @class Phaser.Physics.P2.Material
-* @classdesc Physics Material Constructor
 * @constructor
+* @param {string} name - The user defined name given to this Material.
 */
 Phaser.Physics.P2.Material = function (name) {
 
@@ -18322,11 +18393,10 @@ Phaser.Physics.P2.Material.prototype.constructor = Phaser.Physics.P2.Material;
 * Defines a physics material
 *
 * @class Phaser.Physics.P2.ContactMaterial
-* @classdesc Physics ContactMaterial Constructor
 * @constructor
-* @param {Phaser.Physics.P2.Material} materialA
-* @param {Phaser.Physics.P2.Material} materialB
-* @param {object} [options]
+* @param {Phaser.Physics.P2.Material} materialA - First material participating in the contact material.
+* @param {Phaser.Physics.P2.Material} materialB - Second material participating in the contact material.
+* @param {object} [options] - Additional configuration options.
 */
 Phaser.Physics.P2.ContactMaterial = function (materialA, materialB, options) {
 
@@ -18339,7 +18409,7 @@ Phaser.Physics.P2.ContactMaterial = function (materialA, materialB, options) {
 	*/
 
 	/**
-	* @property {Phaser.Physics.P2.Material} materialB - First second participating in the contact material.
+	* @property {Phaser.Physics.P2.Material} materialB - Second material participating in the contact material.
 	*/
 
 	/**
@@ -18387,8 +18457,8 @@ Phaser.Physics.P2.ContactMaterial.prototype.constructor = Phaser.Physics.P2.Cont
 * Collision Group
 *
 * @class Phaser.Physics.P2.CollisionGroup
-* @classdesc Physics Collision Group Constructor
 * @constructor
+* @param {number} bitmask - The CollisionGroup bitmask.
 */
 Phaser.Physics.P2.CollisionGroup = function (bitmask) {
 
@@ -18409,7 +18479,6 @@ Phaser.Physics.P2.CollisionGroup = function (bitmask) {
 * A constraint that tries to keep the distance between two bodies constant.
 *
 * @class Phaser.Physics.P2.DistanceConstraint
-* @classdesc Physics DistanceConstraint Constructor
 * @constructor
 * @param {Phaser.Physics.P2} world - A reference to the P2 World.
 * @param {p2.Body} bodyA - First connected body.
@@ -18460,7 +18529,6 @@ Phaser.Physics.P2.DistanceConstraint.prototype.constructor = Phaser.Physics.P2.D
 * Connects two bodies at given offset points, letting them rotate relative to each other around this point.
 *
 * @class Phaser.Physics.P2.GearConstraint
-* @classdesc Physics GearConstraint Constructor
 * @constructor
 * @param {Phaser.Physics.P2} world - A reference to the P2 World.
 * @param {p2.Body} bodyA - First connected body.
@@ -18502,7 +18570,6 @@ Phaser.Physics.P2.GearConstraint.prototype.constructor = Phaser.Physics.P2.GearC
 * Locks the relative position between two bodies.
 *
 * @class Phaser.Physics.P2.LockConstraint
-* @classdesc Physics LockConstraint Constructor
 * @constructor
 * @param {Phaser.Physics.P2} world - A reference to the P2 World.
 * @param {p2.Body} bodyA - First connected body.
@@ -18548,7 +18615,6 @@ Phaser.Physics.P2.LockConstraint.prototype.constructor = Phaser.Physics.P2.LockC
 * Connects two bodies at given offset points, letting them rotate relative to each other around this point.
 *
 * @class Phaser.Physics.P2.PrismaticConstraint
-* @classdesc Physics PrismaticConstraint Constructor
 * @constructor
 * @param {Phaser.Physics.P2} world - A reference to the P2 World.
 * @param {p2.Body} bodyA - First connected body.
@@ -18600,7 +18666,6 @@ Phaser.Physics.P2.PrismaticConstraint.prototype.constructor = Phaser.Physics.P2.
 * The pivot points are given in world (pixel) coordinates.
 *
 * @class Phaser.Physics.P2.RevoluteConstraint
-* @classdesc Physics RevoluteConstraint Constructor
 * @constructor
 * @param {Phaser.Physics.P2} world - A reference to the P2 World.
 * @param {p2.Body} bodyA - First connected body.
